@@ -1,17 +1,13 @@
-import * as admin from 'firebase-admin';
-
-if (!admin.apps.length) {
-  try {
+let adminAuth: any = null;
+try {
+  const admin = require('firebase-admin');
+  if (!admin.apps.length) {
     admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      }),
+      credential: admin.credential.applicationDefault(),
     });
-  } catch (error) {
-    console.warn('[FirebaseAdmin] Failed to initialize admin SDK with credentials, running fallback mode:', error);
   }
+  adminAuth = admin.auth();
+} catch {
+  // In test environments or when firebase-admin is not installed, leave adminAuth undefined
 }
-
-export const adminAuth = admin.apps.length ? admin.auth() : null;
+export { adminAuth };
