@@ -14,3 +14,9 @@ pnpm-debug.log*
 bun.lockb
 temp_*.md
 scripts/
+
+# Workspace persona files (not project code)
+AGENTS.md
+IDENTITY.md
+SOUL.md
+USER.md
