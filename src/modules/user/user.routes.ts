@@ -3,7 +3,7 @@ import { authenticate } from '../../middleware/auth';
 import { db } from '../../db';
 import { users } from '../../db/schema';
 import { eq } from 'drizzle-orm';
-import { uploadAvatarToCloudinary } from '../../lib/cloudinary';
+import { uploadAvatarToCloudinary, deleteAvatarFromCloudinary } from '../../lib/cloudinary';
 
 export const userRoutes = new Elysia({ prefix: '/api/v1/user' })
   .use(authenticate)
@@ -26,17 +26,29 @@ export const userRoutes = new Elysia({ prefix: '/api/v1/user' })
           return { ok: false, message: 'Image payload is required' };
         }
 
+        // Fetch existing avatar to clean up if previously stored on Cloudinary
+        const currentUser = await db.query.users.findFirst({
+          where: eq(users.id, user.uid),
+        });
+
         let avatarUrl: string;
 
         if (typeof image === 'string') {
-          // Base64 or direct data URL
-          avatarUrl = await uploadAvatarToCloudinary(image, `user_${user.uid}`);
+          // Base64 or direct data URL (use timestamp to bust cache while cleaning old)
+          avatarUrl = await uploadAvatarToCloudinary(image, `user_${user.uid}_${Date.now()}`);
         } else if (image instanceof File || (image as any).arrayBuffer) {
           const buffer = Buffer.from(await (image as File).arrayBuffer());
-          avatarUrl = await uploadAvatarToCloudinary(buffer, `user_${user.uid}`);
+          avatarUrl = await uploadAvatarToCloudinary(buffer, `user_${user.uid}_${Date.now()}`);
         } else {
           set.status = 400;
           return { ok: false, message: 'Invalid file format' };
+        }
+
+        // Delete old avatar from Cloudinary asynchronously
+        if (currentUser?.avatarUrl && currentUser.avatarUrl !== avatarUrl) {
+          deleteAvatarFromCloudinary(currentUser.avatarUrl).catch((e) =>
+            console.error('[Cloudinary] cleanup error:', e)
+          );
         }
 
         // Update user avatar in DB

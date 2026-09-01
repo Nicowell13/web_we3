@@ -66,6 +66,30 @@ export async function uploadAvatarToCloudinary(
 }
 
 /**
+ * Delete an old avatar from Cloudinary by extracting its public_id from the Cloudinary URL.
+ * Only deletes if the URL is hosted on Cloudinary and in the wetri folder.
+ */
+export async function deleteAvatarFromCloudinary(url?: string | null): Promise<boolean> {
+  if (!url || !url.includes('res.cloudinary.com')) return false;
+
+  try {
+    // Extract public_id from Cloudinary URL (e.g. .../upload/v12345/wetri/avatars/user_123.webp)
+    const match = url.match(/\/upload\/(?:v\d+\/)?(wetri\/avatars\/[^.]+)/);
+    if (!match || !match[1]) return false;
+
+    const publicId = match[1];
+    const res = await cloudinary.uploader.destroy(publicId, {
+      resource_type: 'image',
+      invalidate: true,
+    });
+    return res.result === 'ok';
+  } catch (err) {
+    console.error('[Cloudinary] Failed to delete old avatar:', err);
+    return false;
+  }
+}
+
+/**
  * Generate a DiceBear Bottts avatar SVG URL for an initial user profile.
  */
 export function getDicebearAvatarUrl(seed: string): string {
