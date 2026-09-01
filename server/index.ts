@@ -4,6 +4,7 @@ import { authRoutes } from '../src/modules/auth/auth.routes';
 import { supplierPublicRoutes, supplierAdminRoutes } from '../src/modules/suppliers/supplier.routes';
 import { paymentRoutes, webhookRoutes } from '../src/modules/payment/payment.routes';
 import { voucherRoutes } from '../src/modules/voucher/voucher.routes';
+import { checkinRoutes } from '../src/modules/checkin/checkin.routes';
 
 const port = Number(process.env.PORT) || 3001;
 
@@ -36,7 +37,10 @@ export const app = new Elysia()
   .use(webhookRoutes)
 
   // Voucher / Loyalty module
-  .use(voucherRoutes);
+  .use(voucherRoutes)
+
+  // Daily Check-in module
+  .use(checkinRoutes);
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, () => {
