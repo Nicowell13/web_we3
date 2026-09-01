@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { canTransition, assertTransition, isTerminal, TxStatus } from '../src/modules/transaction/stateMachine';
-import { calculatePoints } from '../src/modules/transaction/points.logic';
+import { canTransition, assertTransition, isTerminal, TxStatus } from '../../src/modules/transaction/stateMachine';
+import { calculatePoints } from '../../src/modules/transaction/points.logic';
 
 describe('[FEAT-05] State Machine: canTransition', () => {
   const valid: [TxStatus, TxStatus][] = [
