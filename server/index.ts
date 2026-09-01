@@ -1,7 +1,7 @@
 import { Elysia } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import { authRoutes } from '../src/modules/auth/auth.routes';
-import { requireRole } from '../src/middleware/auth';
+import { supplierPublicRoutes, supplierAdminRoutes } from '../src/modules/suppliers/supplier.routes';
 
 const port = Number(process.env.PORT) || 3001;
 
@@ -25,9 +25,9 @@ export const app = new Elysia()
   // Auth module
   .use(authRoutes)
 
-  // RBAC demo: admin-only route
-  .use(requireRole('admin'))
-  .get('/api/admin/ping', () => ({ ok: true, message: 'Admin access verified' }));
+  // Supplier module (public then admin)
+  .use(supplierPublicRoutes)
+  .use(supplierAdminRoutes);
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, () => {
