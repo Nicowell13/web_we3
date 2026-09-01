@@ -305,9 +305,6 @@ export default function DashboardPage() {
                 accept="image/jpeg,image/png,image/webp,image/gif"
                 className="hidden"
               />
-              <p className="text-[10px] text-slate-500 mt-1">
-                Format: JPG, PNG, WEBP, GIF (Max 3MB, auto-convert WebP 256x256)
-              </p>
             </div>
 
             <div className="space-y-1.5">
@@ -320,11 +317,6 @@ export default function DashboardPage() {
               <p className="text-xs text-slate-400 font-mono">{profile.email}</p>
               
               {/* Feedback messages */}
-              {avatarSuccess && (
-                <p className="text-xs text-accent-green flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> {avatarSuccess}
-                </p>
-              )}
               {avatarError && (
                 <p className="text-xs text-secondary flex items-center gap-1">
                   <AlertCircle className="w-3.5 h-3.5" /> {avatarError}
