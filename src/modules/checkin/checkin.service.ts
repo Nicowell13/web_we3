@@ -31,18 +31,20 @@ export function daysBetween(a: string, b: string): number {
 
 /**
  * Core check-in logic — pure function.
+ * 
+ * New Loyalty Rules:
+ *  - Hari 1 s/d 4: streak bertambah, poin = 0
+ *  - Hari ke-5 (kelipatan 5): streak bertambah, poin dilepas sekaligus 5 poin (+5 bonus)
+ *  - Skip 1 hari (gap > 1): streak otomatis reset ke 1, poin = 0
+ * 
  * @param now              Current timestamp
  * @param lastCheckinAt    DB value: last check-in timestamp (null = never checked in)
  * @param currentStreak    DB value: current streak count
- * @param basePoints       Points per check-in (default 1)
- * @param streakBonus      Bonus points at every 5-day milestone (default 5)
  */
 export function computeCheckIn(
   now: Date,
   lastCheckinAt: Date | null,
-  currentStreak: number,
-  basePoints = 1,
-  streakBonus = 5
+  currentStreak: number
 ): CheckInResult {
   const todayStr = toWIBDateStr(now);
 
@@ -61,12 +63,14 @@ export function computeCheckIn(
   }
 
   const newStreak = currentStreak + 1;
-  const bonus = newStreak % 5 === 0 ? streakBonus : 0;
+  // Poin hanya dilepas ketika streak mencapai kelipatan 5 hari berturut-turut (misal hari ke-5, 10, dst)
+  const isMilestone = newStreak % 5 === 0;
+  const pointsAwarded = isMilestone ? 5 : 0;
 
   return {
     success: true,
     streak: newStreak,
-    pointsAwarded: basePoints,
-    bonusAwarded: bonus,
+    pointsAwarded,
+    bonusAwarded: 0,
   };
 }

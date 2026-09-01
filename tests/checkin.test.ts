@@ -33,49 +33,46 @@ describe('[FEAT-07] daysBetween', () => {
 });
 
 describe('[FEAT-07] computeCheckIn', () => {
-  const base = 1;
-  const bonus = 5;
-
-  it('first ever check-in (no prior): streak=1, 1 point, no bonus', () => {
+  it('first ever check-in (no prior): streak=1, 0 point (rewards on 5-day streak)', () => {
     const r = computeCheckIn(wibNoon('2026-09-01'), null, 0);
     expect(r.success).toBe(true);
     expect(r.streak).toBe(1);
-    expect(r.pointsAwarded).toBe(1);
-    expect(r.bonusAwarded).toBe(0);
+    expect(r.pointsAwarded).toBe(0);
   });
 
-  it('consecutive day increments streak', () => {
+  it('consecutive day increments streak without points on day 2-4', () => {
     const last = wibNoon('2026-09-01');
     const now  = wibNoon('2026-09-02');
     const r = computeCheckIn(now, last, 3);
     expect(r.success).toBe(true);
     expect(r.streak).toBe(4);
+    expect(r.pointsAwarded).toBe(0);
   });
 
-  it('streak 4 → 5 triggers +5 bonus', () => {
+  it('streak 4 → 5 awards 5 points batch', () => {
     const last = wibNoon('2026-09-01');
     const now  = wibNoon('2026-09-02');
     const r = computeCheckIn(now, last, 4);
     expect(r.success).toBe(true);
     expect(r.streak).toBe(5);
-    expect(r.bonusAwarded).toBe(5);
+    expect(r.pointsAwarded).toBe(5);
   });
 
-  it('streak 9 → 10 also triggers bonus (every 5)', () => {
+  it('streak 9 → 10 awards 5 points batch (every 5 consecutive days)', () => {
     const last = wibNoon('2026-09-01');
     const now  = wibNoon('2026-09-02');
     const r = computeCheckIn(now, last, 9);
     expect(r.streak).toBe(10);
-    expect(r.bonusAwarded).toBe(5);
+    expect(r.pointsAwarded).toBe(5);
   });
 
-  it('gap of 2 days resets streak to 1', () => {
+  it('gap of 2 days resets streak to 1 with 0 points', () => {
     const last = wibNoon('2026-09-01');
     const now  = wibNoon('2026-09-03');  // skipped 2026-09-02
     const r = computeCheckIn(now, last, 7);
     expect(r.success).toBe(true);
     expect(r.streak).toBe(1);
-    expect(r.bonusAwarded).toBe(0);
+    expect(r.pointsAwarded).toBe(0);
   });
 
   it('gap of 10 days resets streak to 1', () => {
@@ -83,6 +80,7 @@ describe('[FEAT-07] computeCheckIn', () => {
     const now  = wibNoon('2026-09-01');
     const r = computeCheckIn(now, last, 10);
     expect(r.streak).toBe(1);
+    expect(r.pointsAwarded).toBe(0);
   });
 
   it('same calendar day (WIB) returns already_checked_in', () => {

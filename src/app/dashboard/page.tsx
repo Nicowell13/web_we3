@@ -147,7 +147,12 @@ export default function DashboardPage() {
       });
       const json = await res.json();
       if (json.ok) {
-        setCheckinMsg(`Check-in berhasil! +${json.pointsEarned} Poin (Streak: ${json.streak} hari)`);
+        if (json.pointsAwarded > 0) {
+          setCheckinMsg(`Check-in Streak ${json.streak} Hari! Selamat, kamu dapat +${json.pointsAwarded} Royalty Poin!`);
+        } else {
+          const daysLeft = 5 - (json.streak % 5);
+          setCheckinMsg(`Check-in Streak ${json.streak} Hari! Tinggal ${daysLeft} hari lagi untuk klaim +5 Poin.`);
+        }
         await fetchDashboard();
       } else {
         setCheckinMsg(json.message || 'Gagal check-in hari ini');
