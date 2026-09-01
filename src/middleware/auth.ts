@@ -27,34 +27,27 @@ async function resolveToken(req: Request) {
   }
 }
 
-/**
- * ElysiaJS plugin: authenticate.
- * Injects `user` (DecodedIdToken) and `role` (string) into context.
- */
+/** Authenticate plugin — injects user + role into scoped context. */
 export const authenticate = new Elysia({ name: 'authenticate' })
   .error({ UnauthorizedError, ForbiddenError })
-  .onError(({ code, error, set }) => {
+  .onError(({ error, set }) => {
     if (error instanceof UnauthorizedError) { set.status = 401; return { message: error.message }; }
     if (error instanceof ForbiddenError)    { set.status = 403; return { message: error.message }; }
   })
-  .derive({ as: 'global' }, async ({ request }) => {
+  .derive({ as: 'scoped' }, async ({ request }) => {
     const decoded = await resolveToken(request);
     return { user: decoded, role: ((decoded as any).role ?? 'user') as string };
   });
 
-/**
- * ElysiaJS plugin: requireRole.
- * Must be composed after authenticate OR standalone (re-resolves token).
- * Throws 403 if role does not match.
- */
+/** requireRole plugin — throws 403 if caller role does not match. */
 export function requireRole(requiredRole: 'admin' | 'user') {
   return new Elysia({ name: `requireRole:${requiredRole}` })
     .error({ UnauthorizedError, ForbiddenError })
-    .onError(({ code, error, set }) => {
+    .onError(({ error, set }) => {
       if (error instanceof UnauthorizedError) { set.status = 401; return { message: error.message }; }
       if (error instanceof ForbiddenError)    { set.status = 403; return { message: error.message }; }
     })
-    .derive({ as: 'global' }, async ({ request }) => {
+    .derive({ as: 'scoped' }, async ({ request }) => {
       const decoded = await resolveToken(request);
       const role = ((decoded as any).role ?? 'user') as string;
       if (requiredRole === 'admin' && role !== 'admin') {

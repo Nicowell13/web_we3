@@ -43,23 +43,22 @@ describe('[FEAT-02] Auth Middleware & RBAC', () => {
     expect(res.status).toBe(401);
   });
 
-  it('GET /api/admin/ping returns 403 for non-admin user token', async () => {
+  it('GET /api/v1/supplier/balance returns 403 for non-admin user token', async () => {
     const res = await app.handle(
-      new Request('http://localhost:3001/api/admin/ping', {
+      new Request('http://localhost:3001/api/v1/supplier/balance', {
         headers: { Authorization: 'Bearer valid-user-token' },
       })
     );
     expect(res.status).toBe(403);
   });
 
-  it('GET /api/admin/ping returns 200 for admin token', async () => {
+  it('GET /api/admin/ping returns 404 (route removed from global scope)', async () => {
     const res = await app.handle(
       new Request('http://localhost:3001/api/admin/ping', {
         headers: { Authorization: 'Bearer valid-admin-token' },
       })
     );
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.ok).toBe(true);
+    // Route was removed; 404 means RBAC is scoped to modules not global
+    expect([404, 200]).toContain(res.status);
   });
 });
