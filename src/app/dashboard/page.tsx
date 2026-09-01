@@ -84,9 +84,16 @@ export default function DashboardPage() {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    // Validate size < 2MB
-    if (file.size > 2 * 1024 * 1024) {
-      setAvatarError('Ukuran file maksimal 2MB');
+    // Allowed image formats
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+    if (!validTypes.includes(file.type)) {
+      setAvatarError('Format file tidak didukung. Gunakan JPG, PNG, WEBP, atau GIF.');
+      return;
+    }
+
+    // Validate size < 3MB
+    if (file.size > 3 * 1024 * 1024) {
+      setAvatarError('Ukuran file maksimal 3MB (akan otomatis dikonversi ke WebP).');
       return;
     }
 
@@ -111,7 +118,7 @@ export default function DashboardPage() {
         });
         const json = await res.json();
         if (json.ok) {
-          setAvatarSuccess('Avatar berhasil diperbarui!');
+          setAvatarSuccess('Avatar berhasil dikonversi ke WebP & disimpan!');
           setData((prev: any) => ({
             ...prev,
             profile: { ...prev.profile, avatarUrl: json.avatarUrl },
@@ -295,9 +302,12 @@ export default function DashboardPage() {
                 type="file"
                 ref={fileInputRef}
                 onChange={handleAvatarChange}
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp,image/gif"
                 className="hidden"
               />
+              <p className="text-[10px] text-slate-500 mt-1">
+                Format: JPG, PNG, WEBP, GIF (Max 3MB, auto-convert WebP 256x256)
+              </p>
             </div>
 
             <div className="space-y-1.5">
