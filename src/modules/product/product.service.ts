@@ -9,7 +9,7 @@ export async function getAllActiveProducts() {
   const rows = await db
     .select({
       id: products.id,
-      name: products.name,
+      name: products.denomination,
       denomination: products.denomination,
       sellPrice: products.sellPrice,
       gameId: products.gameId,
@@ -32,7 +32,7 @@ export async function getProductById(productId: string) {
   const rows = await db
     .select({
       id: products.id,
-      name: products.name,
+      name: products.denomination,
       denomination: products.denomination,
       sellPrice: products.sellPrice,
       gameId: products.gameId,
@@ -47,4 +47,3 @@ export async function getProductById(productId: string) {
 
   return rows[0] ?? null;
 }
-

@@ -29,12 +29,12 @@ export async function getDashboardData(userId: string) {
     .select({
       code: vouchers.code,
       isUsed: userVouchers.isUsed,
-      claimedAt: userVouchers.claimedAt,
+      claimedAt: userVouchers.obtainedAt,
     })
     .from(userVouchers)
     .innerJoin(vouchers, eq(userVouchers.voucherId, vouchers.id))
     .where(eq(userVouchers.userId, userId))
-    .orderBy(desc(userVouchers.claimedAt));
+    .orderBy(desc(userVouchers.obtainedAt));
 
   return {
     points: user.points,
@@ -44,4 +44,3 @@ export async function getDashboardData(userId: string) {
     voucherHistory: vouchersHistory,
   };
 }
-

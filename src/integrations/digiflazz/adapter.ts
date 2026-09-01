@@ -1,5 +1,5 @@
 import { createHmac } from 'crypto';
-import { TopUpProvider } from '../suppliers/topupProvider';
+import { TopUpProvider } from '../../modules/suppliers/topupProvider';
 
 const BASE_URL = 'https://api.digiflazz.com/v1';
 

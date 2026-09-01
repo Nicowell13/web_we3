@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { use, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 /**
  * Checkout page – displays selected product and dynamic input fields.
  * Calls `/api/v1/payment/create-link` to obtain a payment URL.
  */
-export default function CheckoutPage({ params }: { params: { productId: string } }) {
+export default function CheckoutPage({ params }: { params: Promise<{ productId: string }> }) {
+  const { productId } = use(params);
   const router = useRouter();
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -19,12 +20,12 @@ export default function CheckoutPage({ params }: { params: { productId: string }
   // Load product data on mount
   useEffect(() => {
     (async () => {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/v1/product/${params.productId}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/v1/product/${productId}`);
       const data = await res.json();
       if (data.ok) setProduct(data.product);
       setLoading(false);
     })();
-  }, [params.productId]);
+  }, [productId]);
 
   if (loading) return <p className="text-white">Loading…</p>;
   if (!product) return <p className="text-white">Product not found.</p>;
@@ -96,4 +97,3 @@ export default function CheckoutPage({ params }: { params: { productId: string }
     </div>
   );
 }
-

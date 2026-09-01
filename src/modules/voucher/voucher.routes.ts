@@ -2,7 +2,7 @@ import { Elysia } from 'elysia';
 import { authenticate } from '../../middleware/auth';
 import { db } from '../../db';
 import { vouchers, userVouchers, users } from '../../db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
 /**
  * Thin helpers — all faked in tests via injection.
@@ -48,8 +48,7 @@ export async function applyVoucher(orderId: string, voucherCode: string, userId:
   await db
     .update(userVouchers)
     .set({ isUsed: true, usedAt: new Date() })
-    .where(eq(userVouchers.userId, userId))
-    .where(eq(userVouchers.voucherId, voucher.id));
+    .where(and(eq(userVouchers.userId, userId), eq(userVouchers.voucherId, voucher.id)));
 
   return voucher;
 }

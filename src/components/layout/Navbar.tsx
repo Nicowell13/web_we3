@@ -1,7 +1,8 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
-import { Gamepad2, Sparkles, User, ShoppingBag, ShieldCheck, LogIn, LogOut } from 'lucide-react';
+import { Sparkles, User, ShoppingBag, ShieldCheck, LogIn, LogOut } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 export function Navbar() {
@@ -12,8 +13,8 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-10 h-10 rounded-lg bg-surface border border-primary flex items-center justify-center group-hover:shadow-neon-cyan transition-all duration-300">
-            <Gamepad2 className="w-6 h-6 text-primary group-hover:scale-110 transition-transform" />
+          <div className="w-10 h-10 rounded-lg bg-surface border border-primary flex items-center justify-center group-hover:shadow-neon-cyan transition-all duration-300 overflow-hidden p-1">
+            <Image src="/logo.webp" alt="WETRI.COM" width={40} height={40} className="w-full h-full object-contain group-hover:scale-110 transition-transform" priority />
           </div>
           <div className="flex flex-col">
             <span className="font-cyber font-bold text-xl tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent-purple to-secondary">
