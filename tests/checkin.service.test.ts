@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { computeCheckIn } from '../../src/modules/checkin/checkin.service';
+import { computeCheckIn } from '../src/modules/checkin/checkin.service';
 
 /** Helper to create a Date at UTC midnight */
 function utc(date: string) {
@@ -27,4 +27,3 @@ describe('[FEAT-07] Daily check‑in service', () => {
     expect(res.streak).toBe(1);
   });
 });
-

@@ -1,7 +1,7 @@
 import { describe, expect, it, mock } from 'bun:test';
 
 // Mock product service
-mock.module('../src/modules/product.product.service', () => ({
+mock.module('../src/modules/product/product.service', () => ({
   getAllActiveProducts: async () => [
     {
       id: 'p1',
@@ -31,10 +31,11 @@ mock.module('../src/modules/product.product.service', () => ({
   },
 }));
 
-// Mock auth middleware to provide dummy user context
-mock.module('../src/middleware/auth', () => ({
-  authenticate: new (require('elysia')).Elysia().derive({ as: 'scoped' }, () => ({ user: { uid: 'testUser' } })),
-  requireRole: () => new (require('elysia')).Elysia(),
+// Mock auth middleware and firebase-admin before any server import
+mock.module('../src/lib/firebase-admin', () => ({
+  adminAuth: {
+    verifyIdToken: async () => ({ uid: 'testUser', role: 'user' }),
+  },
 }));
 
 import { app } from '../server/index';
@@ -56,7 +57,9 @@ describe('[FEAT-08] Product catalog routes', () => {
   });
 
   it('GET /api/v1/product/:id returns product when exists', async () => {
-    const res = await app.handle(new Request('http://localhost:3001/api/v1/product/p1'));
+    const res = await app.handle(new Request('http://localhost:3001/api/v1/product/p1', {
+      headers: { Authorization: 'Bearer valid-token' },
+    }));
     const txt = await res.text();
     let json = {} as any;
     try { json = JSON.parse(txt); } catch {}
@@ -67,7 +70,9 @@ describe('[FEAT-08] Product catalog routes', () => {
   });
 
   it('GET /api/v1/product/:id returns not found for unknown', async () => {
-    const res = await app.handle(new Request('http://localhost:3001/api/v1/product/unknown'));
+    const res = await app.handle(new Request('http://localhost:3001/api/v1/product/unknown', {
+      headers: { Authorization: 'Bearer valid-token' },
+    }));
     const txt = await res.text();
     let json = {} as any;
     try { json = JSON.parse(txt); } catch {}

@@ -17,7 +17,7 @@ import { dashboardRoutes } from '../src/modules/dashboard/dashboard.routes';
 
 const port = Number(process.env.PORT) || 3001;
 
-let app = new Elysia()
+export const app = new Elysia()
   .use(cors())
 
   // Public routes
@@ -46,13 +46,12 @@ let app = new Elysia()
   .use(webhookRoutes)
 
   // Voucher / Loyalty module
-  .use(voucherRoutes);
-
-// Conditionally add product routes (skip in test env where they may be missing)
-if (productRoutes) app = app.use(productRoutes);
-
-// Dashboard and Admin modules (always available)
-app = app.use(dashboardRoutes).use(adminRoutes);
+  .use(voucherRoutes)
+  // Product catalog (if present)
+  .use(productRoutes || new Elysia())
+  // Dashboard and Admin modules
+  .use(dashboardRoutes)
+  .use(adminRoutes);
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, () => {
