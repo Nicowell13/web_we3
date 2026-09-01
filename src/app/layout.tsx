@@ -3,6 +3,7 @@ import { Inter, Orbitron } from 'next/font/google';
 import './globals.css';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
+import { AuthProvider } from '@/context/AuthContext';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -31,9 +32,11 @@ export default function RootLayout({
         <div className="fixed inset-0 bg-cyber-grid bg-[size:40px_40px] pointer-events-none opacity-40 z-0" />
         <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-gradient-radial-glow pointer-events-none z-0" />
 
-        <Navbar />
-        <main className="flex-1 relative z-10">{children}</main>
-        <Footer />
+        <AuthProvider>
+          <Navbar />
+          <main className="flex-1 relative z-10">{children}</main>
+          <Footer />
+        </AuthProvider>
       </body>
     </html>
   );
