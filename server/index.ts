@@ -2,6 +2,7 @@ import { Elysia } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import { authRoutes } from '../src/modules/auth/auth.routes';
 import { supplierPublicRoutes, supplierAdminRoutes } from '../src/modules/suppliers/supplier.routes';
+import { paymentRoutes, webhookRoutes } from '../src/modules/payment/payment.routes';
 
 const port = Number(process.env.PORT) || 3001;
 
@@ -27,7 +28,11 @@ export const app = new Elysia()
 
   // Supplier module (public then admin)
   .use(supplierPublicRoutes)
-  .use(supplierAdminRoutes);
+  .use(supplierAdminRoutes)
+
+  // Payment module
+  .use(paymentRoutes)
+  .use(webhookRoutes);
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, () => {
