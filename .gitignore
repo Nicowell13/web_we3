@@ -3,7 +3,6 @@ node_modules/
 out/
 build/
 dist/
-drizzle/
 .env
 .env.local
 .env.*.local
