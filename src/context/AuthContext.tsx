@@ -34,13 +34,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
-        const token = await u.getIdToken();
-        setIdToken(token);
-        // Sync to backend DB
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/sync`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-        }).catch(() => void 0);
+        try {
+          // Force fresh token to avoid 401 on first login (client clock/refresh race)
+          const token = await u.getIdToken(true);
+          setIdToken(token);
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/sync`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!res.ok) {
+            const txt = await res.text();
+            console.error('[AuthContext] /api/auth/sync failed', res.status, txt);
+          }
+        } catch (e: any) {
+          console.error('[AuthContext] sync error', e?.message ?? e);
+        }
       } else {
         setIdToken(null);
       }
