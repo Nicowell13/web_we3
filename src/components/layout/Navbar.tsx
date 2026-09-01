@@ -1,7 +1,12 @@
+'use client';
+
 import Link from 'next/link';
-import { Gamepad2, Sparkles, User, ShoppingBag, ShieldCheck } from 'lucide-react';
+import { Gamepad2, Sparkles, User, ShoppingBag, ShieldCheck, LogIn, LogOut } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 export function Navbar() {
+  const { user, loading, signInWithGoogle, signOut } = useAuth();
+
   return (
     <header className="sticky top-0 z-50 glass-panel border-b border-surface-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -34,15 +39,41 @@ export function Navbar() {
           </Link>
         </nav>
 
-        {/* Action Button */}
+        {/* Auth Action */}
         <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface border border-primary/40 text-primary hover:bg-primary hover:text-black font-semibold text-sm transition-all duration-300 shadow-sm hover:shadow-neon-cyan"
-          >
-            <User className="w-4 h-4" />
-            <span>Masuk / Akun</span>
-          </Link>
+          {loading ? (
+            <div className="w-8 h-8 rounded-full bg-surface border border-primary/30 animate-pulse" />
+          ) : user ? (
+            <div className="flex items-center gap-3">
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface border border-primary/40 text-primary hover:bg-primary hover:text-black font-semibold text-xs transition-all duration-300"
+              >
+                {user.photoURL ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={user.photoURL} alt={user.displayName ?? ''} className="w-5 h-5 rounded-full" />
+                ) : (
+                  <User className="w-4 h-4" />
+                )}
+                <span className="hidden sm:inline max-w-[120px] truncate">{user.displayName ?? 'Dashboard'}</span>
+              </Link>
+              <button
+                onClick={signOut}
+                className="p-2 rounded-lg bg-surface border border-slate-700 text-slate-400 hover:text-secondary hover:border-secondary/50 transition-all"
+                title="Keluar"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={signInWithGoogle}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface border border-primary/40 text-primary hover:bg-primary hover:text-black font-semibold text-sm transition-all duration-300 shadow-sm hover:shadow-neon-cyan"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>Masuk / Daftar</span>
+            </button>
+          )}
         </div>
       </div>
     </header>
