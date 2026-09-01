@@ -6,6 +6,7 @@ import { paymentRoutes, webhookRoutes } from '../src/modules/payment/payment.rou
 import { voucherRoutes } from '../src/modules/voucher/voucher.routes';
 import { checkinRoutes } from '../src/modules/checkin/checkin.routes';
 import { adminRoutes } from '../src/modules/admin/admin.routes';
+import { userRoutes } from '../src/modules/user/user.routes';
 let productRoutes;
 try {
   productRoutes = require('../src/modules/product/product.routes').productRoutes;
@@ -47,6 +48,8 @@ export const app = new Elysia()
 
   // Voucher / Loyalty module
   .use(voucherRoutes)
+  .use(checkinRoutes)
+  .use(userRoutes)
   // Product catalog (if present)
   .use(productRoutes || new Elysia())
   // Dashboard and Admin modules

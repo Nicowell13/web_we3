@@ -1,46 +1,163 @@
 import { db } from '../../db';
-import { users, transactions, userVouchers, vouchers } from '../../db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { users, transactions, userVouchers, vouchers, gamesCatalog } from '../../db/schema';
+import { eq, desc, and, gte, sql } from 'drizzle-orm';
+import { getDicebearAvatarUrl } from '../../lib/cloudinary';
+
+export interface TimelineItem {
+  id: string;
+  type: 'transaction' | 'voucher_claim' | 'checkin';
+  title: string;
+  description: string;
+  amount?: string;
+  pointsDelta?: number;
+  status?: string;
+  timestamp: string;
+}
 
 /**
- * Assemble dashboard data for a given user.
- * Returns points, streak, last check‑in, recent transactions, and voucher history.
+ * Assemble rich dashboard data for a given user.
+ * Returns profile, points, streak, checkin status, recent transactions,
+ * available vouchers to claim, owned vouchers, and unified activity timeline.
  */
 export async function getDashboardData(userId: string) {
-  // User profile
-  const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
-  if (!user) throw new Error('User not found');
+  // 1. User profile
+  let user = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  if (!user) {
+    // Generate default avatar if not exists
+    const fallbackAvatar = getDicebearAvatarUrl(userId);
+    const [created] = await db
+      .insert(users)
+      .values({
+        id: userId,
+        email: `${userId}@anon.wetri.com`,
+        avatarUrl: fallbackAvatar,
+      })
+      .onConflictDoUpdate({
+        target: users.id,
+        set: { avatarUrl: fallbackAvatar },
+      })
+      .returning();
+    user = created;
+  }
 
-  // Recent transactions (limit 10)
+  // Ensure user has avatar
+  const avatar = user.avatarUrl || getDicebearAvatarUrl(user.name || user.id);
+
+  // 2. Recent transactions (limit 20)
   const recentTx = await db
     .select({
       orderId: transactions.orderId,
       amount: transactions.amount,
       status: transactions.status,
+      targetUserId: transactions.targetUserId,
+      targetServerId: transactions.targetServerId,
+      productId: transactions.productId,
       createdAt: transactions.createdAt,
+      updatedAt: transactions.updatedAt,
     })
     .from(transactions)
     .where(eq(transactions.userId, userId))
     .orderBy(desc(transactions.createdAt))
-    .limit(10);
+    .limit(20);
 
-  // Voucher history (joined with voucher details)
-  const vouchersHistory = await db
+  // 3. User owned vouchers (history & active)
+  const ownedVouchers = await db
     .select({
+      id: userVouchers.id,
+      voucherId: vouchers.id,
       code: vouchers.code,
+      discountType: vouchers.discountType,
+      discountValue: vouchers.discountValue,
+      maxDiscount: vouchers.maxDiscount,
+      minPurchase: vouchers.minPurchase,
       isUsed: userVouchers.isUsed,
-      claimedAt: userVouchers.obtainedAt,
+      usedAt: userVouchers.usedAt,
+      obtainedAt: userVouchers.obtainedAt,
+      expiresAt: vouchers.expiresAt,
     })
     .from(userVouchers)
     .innerJoin(vouchers, eq(userVouchers.voucherId, vouchers.id))
     .where(eq(userVouchers.userId, userId))
     .orderBy(desc(userVouchers.obtainedAt));
 
+  // 4. Available public vouchers ready to be claimed
+  const now = new Date();
+  const availableVouchers = await db
+    .select({
+      id: vouchers.id,
+      code: vouchers.code,
+      discountType: vouchers.discountType,
+      discountValue: vouchers.discountValue,
+      maxDiscount: vouchers.maxDiscount,
+      minPurchase: vouchers.minPurchase,
+      pointsRequired: vouchers.pointsRequired,
+      quota: vouchers.quota,
+      quotaUsed: vouchers.quotaUsed,
+      expiresAt: vouchers.expiresAt,
+    })
+    .from(vouchers)
+    .where(
+      and(
+        eq(vouchers.isActive, true),
+        gte(vouchers.expiresAt, now)
+      )
+    )
+    .orderBy(desc(vouchers.createdAt))
+    .limit(10);
+
+  // 5. Build Unified Activity Timeline
+  const timeline: TimelineItem[] = [];
+
+  // Add transactions
+  for (const tx of recentTx) {
+    timeline.push({
+      id: `tx_${tx.orderId}`,
+      type: 'transaction',
+      title: `Order Top-up #${tx.orderId.slice(-8)}`,
+      description: `Pembelian top up seharga Rp ${Number(tx.amount).toLocaleString('id-ID')}`,
+      amount: `Rp ${Number(tx.amount).toLocaleString('id-ID')}`,
+      status: tx.status,
+      timestamp: tx.createdAt.toISOString(),
+    });
+  }
+
+  // Add voucher claims
+  for (const v of ownedVouchers) {
+    timeline.push({
+      id: `vc_${v.id}`,
+      type: 'voucher_claim',
+      title: `Klaim Voucher [${v.code}]`,
+      description: v.isUsed ? 'Voucher telah digunakan pada transaksi' : 'Voucher tersimpan di akun kamu',
+      status: v.isUsed ? 'USED' : 'ACTIVE',
+      timestamp: v.obtainedAt.toISOString(),
+    });
+  }
+
+  // Sort unified timeline descending
+  timeline.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  // Check if checked in today
+  const lastCheckin = user.lastCheckinAt ? new Date(user.lastCheckinAt) : null;
+  const isCheckedInToday =
+    lastCheckin !== null &&
+    lastCheckin.toISOString().slice(0, 10) === now.toISOString().slice(0, 10);
+
   return {
-    points: user.points,
-    streak: user.streak,
+    profile: {
+      id: user.id,
+      email: user.email,
+      name: user.name || 'Gamer WETRI',
+      avatarUrl: avatar,
+      role: user.role,
+      createdAt: user.createdAt,
+    },
+    points: user.points ?? 0,
+    streak: user.streak ?? 0,
     lastCheckinAt: user.lastCheckinAt,
+    isCheckedInToday,
     recentTransactions: recentTx,
-    voucherHistory: vouchersHistory,
+    ownedVouchers,
+    availableVouchers,
+    activityTimeline: timeline.slice(0, 25),
   };
 }
