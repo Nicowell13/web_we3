@@ -254,6 +254,18 @@ export default function DashboardPage() {
     );
   }
 
+  // Mask email for privacy / security (e.g. u***r@gmail.com, hides @anon.wetri.com)
+  const getMaskedEmail = (emailStr?: string | null) => {
+    if (!emailStr) return '';
+    if (emailStr.endsWith('@anon.wetri.com')) {
+      return 'Akun Terverifikasi (Google / Anon)';
+    }
+    const [name, domain] = emailStr.split('@');
+    if (!domain) return emailStr;
+    if (name.length <= 2) return `${name[0]}***@${domain}`;
+    return `${name.slice(0, 2)}***${name.slice(-1)}@${domain}`;
+  };
+
   const profile = data?.profile || {
     name: user.displayName || 'Gamer WETRI',
     email: user.email,
@@ -314,7 +326,7 @@ export default function DashboardPage() {
                   VIP GAMER
                 </span>
               </div>
-              <p className="text-xs text-slate-400 font-mono">{profile.email}</p>
+              <p className="text-xs text-slate-400 font-mono">{getMaskedEmail(profile.email)}</p>
               
               {/* Feedback messages */}
               {avatarError && (
