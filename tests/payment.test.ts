@@ -22,6 +22,11 @@ mock.module('../src/db', () => ({
   },
 }));
 
+mock.module('../src/modules/transaction/transaction.service', () => ({
+  advanceTransaction: async (orderId: string, status: string) => ({ orderId, from: 'PENDING', to: status }),
+  findTx: async () => null,
+}));
+
 // ── Env for signature tests ───────────────────────────────────────────────────
 const CLIENT_ID  = 'TEST-CLIENT';
 const SECRET_KEY = '***';
@@ -38,7 +43,6 @@ const fakeDb: Record<string, { status: string; paidAt: null }> = {
   'WETRI-SUCCESS-001': { status: 'SUCCESS', paidAt: null },
 };
 const fakeFindTx    = async (orderId: string) => fakeDb[orderId] ?? null;
-const fakeUpdate    = async () => {};
 const fakeAudit     = async () => {};
 
 // ── Helper ────────────────────────────────────────────────────────────────────
@@ -94,7 +98,7 @@ describe('[FEAT-04] DOKU Idempotency Guard: handleDokuWebhook', () => {
     };
     const result = await handleDokuWebhook(
       payload, JSON.stringify(payload), undefined,
-      fakeFindTx, fakeUpdate, fakeAudit
+      fakeFindTx, fakeAudit
     );
     expect(result.processed).toBe(true);
     expect(result.newStatus).toBe('PAID');
@@ -108,7 +112,7 @@ describe('[FEAT-04] DOKU Idempotency Guard: handleDokuWebhook', () => {
     };
     const result = await handleDokuWebhook(
       payload, JSON.stringify(payload), undefined,
-      fakeFindTx, fakeUpdate, fakeAudit
+      fakeFindTx, fakeAudit
     );
     expect(result.skipped).toBe(true);
     expect(result.reason).toBe('already_terminal');
@@ -121,7 +125,7 @@ describe('[FEAT-04] DOKU Idempotency Guard: handleDokuWebhook', () => {
     };
     const result = await handleDokuWebhook(
       payload, JSON.stringify(payload), undefined,
-      fakeFindTx, fakeUpdate, fakeAudit
+      fakeFindTx, fakeAudit
     );
     expect(result.skipped).toBe(true);
     expect(result.reason).toBe('order_not_found');

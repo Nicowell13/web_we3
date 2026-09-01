@@ -1,6 +1,8 @@
 import { db } from '../../db';
 import { transactions, auditTrails } from '../../db/schema';
 import { eq } from 'drizzle-orm';
+import { advanceTransaction } from '../../modules/transaction/transaction.service';
+import { TxStatus } from '../../modules/transaction/stateMachine';
 
 export type DokuWebhookPayload = {
   order: {
@@ -8,7 +10,7 @@ export type DokuWebhookPayload = {
     amount:         number;
   };
   transaction: {
-    status:    string;  // 'SUCCESS' | 'FAILED' | 'PENDING'
+    status:    string;
     date:      string;
     original_request_id?: string;
   };
@@ -18,17 +20,8 @@ export type DokuWebhookPayload = {
 
 const TERMINAL_STATUSES = new Set(['SUCCESS', 'FAILED', 'REFUNDED']);
 
-// Thin repo functions — easy to mock in tests
 async function findTx(orderId: string) {
   return db.query.transactions.findFirst({ where: eq(transactions.orderId, orderId) });
-}
-
-async function updateTxStatus(orderId: string, newStatus: string, paidAt: Date | null) {
-  await db.update(transactions).set({
-    status:    newStatus as any,
-    updatedAt: new Date(),
-    ...(paidAt ? { paidAt } : {}),
-  }).where(eq(transactions.orderId, orderId));
 }
 
 async function writeAuditTrail(
@@ -49,20 +42,14 @@ async function writeAuditTrail(
 
 /**
  * Idempotent DOKU webhook handler.
- *
- * Guard:
- *  1. Load transaction by orderId.
- *  2. Already terminal (SUCCESS/FAILED/REFUNDED) → skip, no double-process.
- *  3. Otherwise update status + audit trail.
+ * Terminal status guard → delegates to advanceTransaction (state machine + supplier trigger + points).
  */
 export async function handleDokuWebhook(
   payload: DokuWebhookPayload,
   rawBody: string,
   ipAddress?: string,
-  // Injectable for testing
-  _findTx:           typeof findTx        = findTx,
-  _updateTxStatus:   typeof updateTxStatus = updateTxStatus,
-  _writeAuditTrail:  typeof writeAuditTrail = writeAuditTrail
+  _findTx:          typeof findTx          = findTx,
+  _writeAuditTrail: typeof writeAuditTrail = writeAuditTrail
 ) {
   const orderId        = payload.order.invoice_number;
   const incomingStatus = payload.transaction.status.toUpperCase();
@@ -79,12 +66,16 @@ export async function handleDokuWebhook(
     return { skipped: true, reason: 'already_terminal', status: tx.status, orderId };
   }
 
-  const newStatus = mapDokuStatus(incomingStatus);
-  const paidAt    = newStatus === 'PAID' ? new Date() : null;
+  const newStatus = mapDokuStatus(incomingStatus) as TxStatus;
 
-  await _updateTxStatus(orderId, newStatus, paidAt);
+  try {
+    await advanceTransaction(orderId, newStatus);
+  } catch {
+    await _writeAuditTrail('DOKU_WEBHOOK_INVALID_TRANSITION', orderId, rawBody, { from: tx.status, to: newStatus }, ipAddress);
+    return { skipped: true, reason: 'invalid_transition', orderId };
+  }
+
   await _writeAuditTrail('DOKU_WEBHOOK', orderId, rawBody, { newStatus }, ipAddress);
-
   return { processed: true, orderId, newStatus };
 }
 
