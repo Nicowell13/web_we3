@@ -5,6 +5,7 @@ import { supplierPublicRoutes, supplierAdminRoutes } from '../src/modules/suppli
 import { paymentRoutes, webhookRoutes } from '../src/modules/payment/payment.routes';
 import { voucherRoutes } from '../src/modules/voucher/voucher.routes';
 import { checkinRoutes } from '../src/modules/checkin/checkin.routes';
+import { productRoutes } from '../src/modules/product/product.routes';
 
 const port = Number(process.env.PORT) || 3001;
 
@@ -38,6 +39,9 @@ export const app = new Elysia()
 
   // Voucher / Loyalty module
   .use(voucherRoutes)
+
+  // Product catalog
+  .use(productRoutes)
 
   // Daily Check-in module
   .use(checkinRoutes);
