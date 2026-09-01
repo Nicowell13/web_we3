@@ -1,3 +1,7 @@
+import * as dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
+dotenv.config();
+
 import { Elysia } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import { authRoutes } from '../src/modules/auth/auth.routes';
