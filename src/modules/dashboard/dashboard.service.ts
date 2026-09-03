@@ -40,8 +40,15 @@ export async function getDashboardData(userId: string) {
     user = created;
   }
 
-  // Ensure user has avatar
-  const avatar = user.avatarUrl || getDicebearAvatarUrl(user.name || user.id);
+  // Ensure user has stable avatar persisted in DB, so refresh/check-in never makes it disappear.
+  let avatar = user.avatarUrl;
+  if (!avatar) {
+    avatar = getDicebearAvatarUrl(user.id);
+    await db
+      .update(users)
+      .set({ avatarUrl: avatar, updatedAt: new Date() })
+      .where(eq(users.id, user.id));
+  }
 
   // 2. Recent transactions (limit 20)
   const recentTx = await db

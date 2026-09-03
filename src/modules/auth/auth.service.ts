@@ -1,6 +1,7 @@
 import { db } from '../../db';
 import { users } from '../../db/schema';
 import { eq } from 'drizzle-orm';
+import { getDicebearAvatarUrl } from '../../lib/cloudinary';
 
 export type UpsertUserPayload = {
   id: string;       // Firebase UID
@@ -18,14 +19,16 @@ export async function syncUserFromFirebase(payload: UpsertUserPayload) {
     where: eq(users.id, payload.id),
   });
 
+  const fallbackAvatar = getDicebearAvatarUrl(payload.id);
+
   if (existing) {
-    // Update profile fields if provided
-    if (payload.name || payload.avatarUrl) {
+    // Keep a stable app avatar when Google photo is missing; never overwrite uploaded avatar.
+    if (payload.name || !existing.avatarUrl) {
       const [updated] = await db
         .update(users)
         .set({
           name: payload.name ?? existing.name,
-          avatarUrl: payload.avatarUrl ?? existing.avatarUrl,
+          avatarUrl: existing.avatarUrl ?? payload.avatarUrl ?? fallbackAvatar,
           updatedAt: new Date(),
         })
         .where(eq(users.id, payload.id))
@@ -35,14 +38,14 @@ export async function syncUserFromFirebase(payload: UpsertUserPayload) {
     return existing;
   }
 
-  // First login: insert new user row
+  // First login: insert new user row with stable default avatar
   const [created] = await db
     .insert(users)
     .values({
       id: payload.id,
       email: payload.email,
       name: payload.name,
-      avatarUrl: payload.avatarUrl,
+      avatarUrl: payload.avatarUrl ?? fallbackAvatar,
       role: 'user',
       points: 0,
       streak: 0,

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Sparkles, User, ShoppingBag, ShieldCheck, LogIn, LogOut } from 'lucide-react';
@@ -7,6 +8,32 @@ import { useAuth } from '@/context/AuthContext';
 
 export function Navbar() {
   const { user, loading, signInWithGoogle, signOut } = useAuth();
+  const [appAvatarUrl, setAppAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      setAppAvatarUrl(null);
+      return;
+    }
+
+    let cancelled = false;
+    user.getIdToken().then((token) =>
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/user/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((json) => {
+          if (!cancelled && json?.user?.avatarUrl) setAppAvatarUrl(json.user.avatarUrl);
+        })
+        .catch(() => void 0)
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const avatarUrl = appAvatarUrl || user?.photoURL || (user ? `https://api.dicebear.com/9.x/bottts/svg?seed=${encodeURIComponent(user.uid)}` : null);
 
   return (
     <header className="sticky top-0 z-50 glass-panel border-b border-surface-border">
@@ -50,9 +77,9 @@ export function Navbar() {
                 href="/dashboard"
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface border border-primary/40 text-primary hover:bg-primary hover:text-black font-semibold text-xs transition-all duration-300"
               >
-                {user.photoURL ? (
+                {avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={user.photoURL} alt={user.displayName ?? ''} className="w-5 h-5 rounded-full" />
+                  <img src={avatarUrl} alt={user.displayName ?? 'Avatar'} className="w-5 h-5 rounded-full object-cover" />
                 ) : (
                   <User className="w-4 h-4" />
                 )}
