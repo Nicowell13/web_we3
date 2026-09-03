@@ -1,7 +1,7 @@
 import { Elysia } from 'elysia';
 import { authenticate } from '../../middleware/auth';
 import { db } from '../../db';
-import { vouchers, userVouchers, users } from '../../db/schema';
+import { transactions, vouchers, userVouchers, users } from '../../db/schema';
 import { and, eq, sql } from 'drizzle-orm';
 
 /**
@@ -29,8 +29,9 @@ export async function applyVoucher(orderId: string, voucherCode: string, userId:
   const voucher = await findActiveVoucher(voucherCode);
   if (!voucher || !voucher.isActive) throw new Error('Invalid or inactive voucher');
 
-  if (new Date(voucher.expiresAt) < new Date()) throw new Error('Voucher expired');
+  if (new Date(voucher.expiresAt) <= new Date()) throw new Error('Voucher expired');
   if (voucher.quotaUsed >= voucher.quota) throw new Error('Voucher quota exhausted');
+  if (orderId && Number((await db.query.transactions.findFirst({ where: eq(transactions.orderId, orderId), columns: { originalAmount: true } }))?.originalAmount ?? 0) < Number(voucher.minPurchase)) throw new Error('Minimum purchase not met');
 
   if (voucher.pointsRequired > 0) {
     const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
