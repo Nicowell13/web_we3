@@ -22,6 +22,7 @@ type SystemConfig = { id: string; key: string; value: string; description: strin
 type AdminProduct = { id: string; denomination: string; basePrice: string; sellPrice: string; isActive: boolean; supplierStatus: string; gameId: string };
 type AdminVoucher = { id: string; code: string; discountType: string; discountValue: string; quota: number; quotaUsed: number; isActive: boolean; expiresAt: string };
 type AdminUser = { id: string; email: string; name: string | null; status: string; role: string; bannedReason: string | null };
+type HomeBanner = { title: string; subtitle: string; ctaText: string; ctaUrl: string; imageUrl: string; isActive: boolean };
 
 export default function OldSchoolPage() {
   const { user, loading: authLoading, signInWithGoogle } = useAuth();
@@ -35,6 +36,7 @@ export default function OldSchoolPage() {
   const [vouchers, setVouchers] = useState<AdminVoucher[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [actionMessage, setActionMessage] = useState('');
+  const [banner, setBanner] = useState<HomeBanner | null>(null);
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -65,13 +67,14 @@ export default function OldSchoolPage() {
 
       setAccessState('allowed');
 
-      const [mRes, lRes, cRes, pRes, vRes, uRes] = await Promise.all([
+      const [mRes, lRes, cRes, pRes, vRes, uRes, bRes] = await Promise.all([
         fetch(`${apiBase}/api/v1/old-school/metrics`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/audit-logs`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/configs`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/products`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/vouchers`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/users`, { headers }),
+        fetch(`${apiBase}/api/v1/old-school/banners`, { headers }),
       ]);
 
       if (mRes.ok) {
@@ -90,6 +93,7 @@ export default function OldSchoolPage() {
       if (pRes.ok) { const p = await pRes.json(); setProducts(p.products ?? []); }
       if (vRes.ok) { const v = await vRes.json(); setVouchers(v.vouchers ?? []); }
       if (uRes.ok) { const u = await uRes.json(); setUsers(u.users ?? []); }
+      if (bRes.ok) { const b = await bRes.json(); setBanner(b.banner ?? null); }
     } catch {
       setAccessState('forbidden');
     } finally {
@@ -217,6 +221,22 @@ export default function OldSchoolPage() {
       </div>
 
       {actionMessage && <p className="text-xs text-primary font-mono">{actionMessage}</p>}
+
+      {banner && <div className="glass-panel p-6 rounded-2xl border border-surface-border space-y-4">
+        <h2 className="text-base font-cyber font-bold text-white">Home Banner Promo</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <input id="banner-title" defaultValue={banner.title} className="bg-black/40 border border-surface-border rounded px-3 py-2 text-xs text-white" placeholder="Title" />
+          <input id="banner-cta" defaultValue={banner.ctaText} className="bg-black/40 border border-surface-border rounded px-3 py-2 text-xs text-white" placeholder="CTA text" />
+          <input id="banner-url" defaultValue={banner.ctaUrl} className="bg-black/40 border border-surface-border rounded px-3 py-2 text-xs text-white" placeholder="CTA URL" />
+          <label className="flex items-center gap-2 text-xs text-slate-300"><input id="banner-active" type="checkbox" defaultChecked={banner.isActive} /> Active</label>
+          <textarea id="banner-subtitle" defaultValue={banner.subtitle} className="md:col-span-2 bg-black/40 border border-surface-border rounded px-3 py-2 text-xs text-white" placeholder="Subtitle" />
+        </div>
+        {banner.imageUrl && <img src={banner.imageUrl} alt="Home banner" className="max-h-48 rounded-lg object-cover border border-surface-border" />}
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => adminAction('/api/v1/old-school/banners', 'POST', { title: (document.getElementById('banner-title') as HTMLInputElement).value, subtitle: (document.getElementById('banner-subtitle') as HTMLTextAreaElement).value, ctaText: (document.getElementById('banner-cta') as HTMLInputElement).value, ctaUrl: (document.getElementById('banner-url') as HTMLInputElement).value, isActive: (document.getElementById('banner-active') as HTMLInputElement).checked })} className="px-3 py-2 rounded bg-primary/20 border border-primary/40 text-primary text-xs">Save Banner</button>
+          <input id="banner-image" type="file" accept="image/png,image/jpeg,image/webp" className="text-xs text-slate-300" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => adminAction('/api/v1/old-school/banners/image', 'POST', { image: reader.result }); reader.readAsDataURL(file); }} />
+        </div>
+      </div>}
 
       <div className="glass-panel p-6 rounded-2xl border border-surface-border space-y-4">
         <h2 className="text-base font-cyber font-bold text-white">Products & Digiflazz</h2>

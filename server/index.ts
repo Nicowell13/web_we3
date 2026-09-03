@@ -19,6 +19,7 @@ try {
   productRoutes = null;
 }
 import { dashboardRoutes } from '../src/modules/dashboard/dashboard.routes';
+import { bannerAdminRoutes, bannerPublicRoutes } from '../src/modules/banner/banner.routes';
 
 const port = Number(process.env.PORT) || 3001;
 
@@ -38,6 +39,7 @@ export const app = new Elysia()
     version: '1.0.0',
     maintenance: false,
   }))
+  .use(bannerPublicRoutes)
 
   // Auth module
   .use(authRoutes)
@@ -58,7 +60,8 @@ export const app = new Elysia()
   .use(productRoutes || new Elysia())
   // Dashboard and Admin modules
   .use(dashboardRoutes)
-  .use(adminRoutes);
+  .use(adminRoutes)
+  .use(bannerAdminRoutes);
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, () => {

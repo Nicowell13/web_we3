@@ -34,6 +34,20 @@ export async function convertToWebPBuffer(input: Buffer | string): Promise<Buffe
     .toBuffer();
 }
 
+async function uploadWebPToCloudinary(fileBufferOrBase64: string | Buffer, folder: string, publicId?: string, size = 256): Promise<string> {
+  const buffer = typeof fileBufferOrBase64 === 'string'
+    ? Buffer.from(fileBufferOrBase64.replace(/^data:image\/\w+;base64,/, ''), 'base64')
+    : fileBufferOrBase64;
+  const webpBuffer = await sharp(buffer).rotate().resize(size, size, { fit: 'cover', position: 'center' }).webp({ quality: 85, effort: 4 }).toBuffer();
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream({ folder, public_id: publicId, overwrite: true, format: 'webp', resource_type: 'image' as const }, (error, result) => {
+      if (error || !result) reject(error || new Error('Cloudinary upload failed'));
+      else resolve(result.secure_url);
+    });
+    stream.end(webpBuffer);
+  });
+}
+
 /**
  * Upload an image buffer or base64 data to Cloudinary in the `wetri/avatars` folder.
  * Always converts image to WebP format first.
@@ -42,51 +56,32 @@ export async function uploadAvatarToCloudinary(
   fileBufferOrBase64: string | Buffer,
   publicId?: string
 ): Promise<string> {
-  // Always pre-convert to WebP buffer
-  const webpBuffer = await convertToWebPBuffer(fileBufferOrBase64);
-
-  const options = {
-    folder: 'wetri/avatars',
-    public_id: publicId,
-    overwrite: true,
-    format: 'webp',
-    resource_type: 'image' as const,
-  };
-
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(options, (error, result) => {
-      if (error || !result) {
-        reject(error || new Error('Cloudinary upload failed'));
-      } else {
-        resolve(result.secure_url);
-      }
-    });
-    stream.end(webpBuffer);
-  });
+  return uploadWebPToCloudinary(fileBufferOrBase64, 'wetri/avatars', publicId, 256);
 }
 
 /**
  * Delete an old avatar from Cloudinary by extracting its public_id from the Cloudinary URL.
  * Only deletes if the URL is hosted on Cloudinary and in the wetri folder.
  */
-export async function deleteAvatarFromCloudinary(url?: string | null): Promise<boolean> {
+export async function uploadBannerToCloudinary(fileBufferOrBase64: string | Buffer, publicId?: string): Promise<string> {
+  return uploadWebPToCloudinary(fileBufferOrBase64, 'wetri/banners', publicId, 1200);
+}
+
+export async function deleteCloudinaryImage(url?: string | null): Promise<boolean> {
   if (!url || !url.includes('res.cloudinary.com')) return false;
-
   try {
-    // Extract public_id from Cloudinary URL (e.g. .../upload/v12345/wetri/avatars/user_123.webp)
-    const match = url.match(/\/upload\/(?:v\d+\/)?(wetri\/avatars\/[^.]+)/);
+    const match = url.match(/\/upload\/(?:v\d+\/)?(wetri\/(?:avatars|banners)\/[^.]+)/);
     if (!match || !match[1]) return false;
-
-    const publicId = match[1];
-    const res = await cloudinary.uploader.destroy(publicId, {
-      resource_type: 'image',
-      invalidate: true,
-    });
+    const res = await cloudinary.uploader.destroy(match[1], { resource_type: 'image', invalidate: true });
     return res.result === 'ok';
   } catch (err) {
-    console.error('[Cloudinary] Failed to delete old avatar:', err);
+    console.error('[Cloudinary] Failed to delete image:', err);
     return false;
   }
+}
+
+export async function deleteAvatarFromCloudinary(url?: string | null): Promise<boolean> {
+  return deleteCloudinaryImage(url);
 }
 
 /** Generate a DiceBear Bottts avatar SVG URL. */

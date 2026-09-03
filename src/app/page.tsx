@@ -36,7 +36,16 @@ const FEATURED_GAMES = [
   },
 ];
 
-export default function HomePage() {
+async function getHomeBanner() {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/home-banner`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('banner unavailable');
+    return (await res.json()).banner as { title: string; subtitle: string; ctaText: string; ctaUrl: string; imageUrl: string; isActive: boolean };
+  } catch { return null; }
+}
+
+export default async function HomePage() {
+  const banner = await getHomeBanner();
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-16">
       {/* Hero Section */}
@@ -44,29 +53,35 @@ export default function HomePage() {
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
 
+        {banner?.isActive && banner.imageUrl && (
+          <div className="absolute inset-y-0 right-0 hidden lg:block w-1/2 opacity-35">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={banner.imageUrl} alt="Promo banner" className="h-full w-full object-cover" />
+          </div>
+        )}
         <div className="max-w-3xl space-y-6 relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-primary/40 text-primary text-xs font-semibold uppercase tracking-wider">
             <Sparkles className="w-3.5 h-3.5 text-primary animate-spin" />
-            Vaporwave & Cyberpunk Top-up Destination
+             Top-up Destination Terpercaya
           </div>
 
           <h1 className="font-cyber text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
-            LEVEL UP INSTAN. <br />
+            {banner?.isActive ? banner.title : 'LEVEL UP INSTAN.'} <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent-purple to-secondary">
               REWARD SETIAP TRANSAKSI.
             </span>
           </h1>
 
           <p className="text-slate-300 text-base sm:text-lg max-w-xl">
-            Layanan top-up game & PPOB tercepat berkecepatan kilat. Dapatkan cashback loyalty points, daily streak reward, dan promo diskon eksklusif.
+            {banner?.isActive ? banner.subtitle : 'Layanan top-up game & PPOB tercepat berkecepatan kilat. Dapatkan cashback loyalty points, daily streak reward, dan promo diskon eksklusif.'}
           </p>
 
           <div className="flex flex-wrap items-center gap-4 pt-2">
             <Link
-              href="/catalog"
+              href={banner?.isActive ? banner.ctaUrl : '/catalog'}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-primary text-black font-cyber font-bold text-sm tracking-wide hover:shadow-neon-cyan transition-all duration-300 hover:scale-105"
             >
-              <span>JELAJAHI KATALOG</span>
+              <span>{banner?.isActive ? banner.ctaText : 'JELAJAHI KATALOG'}</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
