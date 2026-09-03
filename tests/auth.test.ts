@@ -1,16 +1,21 @@
-import { describe, expect, it, mock, beforeAll } from 'bun:test';
+import { describe, expect, it, mock } from 'bun:test';
+
+let lastVerifiedUid: string | null = null;
 
 // Mock firebase-admin so tests run without real credentials
 mock.module('../src/lib/firebase-admin', () => ({
   adminAuth: {
     verifyIdToken: async (token: string) => {
       if (token === 'valid-admin-token') {
+        lastVerifiedUid = 'admin-uid-1';
         return { uid: 'admin-uid-1', email: 'admin@wetri.com', role: 'admin', name: 'Admin WETRI', picture: null };
       }
       if (token === 'valid-user-token') {
+        lastVerifiedUid = 'user-uid-1';
         return { uid: 'user-uid-1', email: 'user@wetri.com', role: 'user', name: 'User Test', picture: null };
       }
       if (token === 'forged-admin-claim-token') {
+        lastVerifiedUid = 'user-uid-1';
         return { uid: 'user-uid-1', email: 'user@wetri.com', role: 'admin', name: 'User Test', picture: null };
       }
       throw new Error('Invalid token');
@@ -22,10 +27,9 @@ mock.module('../src/db', () => ({
   db: {
     query: {
       users: {
-        findFirst: async ({ where }: any) => {
-          const text = String(where);
-          if (text.includes('admin-uid-1')) return { role: 'admin' };
-          if (text.includes('user-uid-1')) return { role: 'user' };
+        findFirst: async () => {
+          if (lastVerifiedUid === 'admin-uid-1') return { role: 'admin' };
+          if (lastVerifiedUid === 'user-uid-1') return { role: 'user' };
           return null;
         },
       },
@@ -82,13 +86,36 @@ describe('[FEAT-02] Auth Middleware & RBAC', () => {
     expect(res.status).toBe(403);
   });
 
-  it('GET /api/admin/ping returns 404 (route removed from global scope)', async () => {
+  it('GET /api/v1/old-school/ping returns 401 without token', async () => {
+    const res = await app.handle(new Request('http://localhost:3001/api/v1/old-school/ping'));
+    expect(res.status).toBe(401);
+  });
+
+  it('GET /api/v1/old-school/ping returns 403 for non-admin DB role', async () => {
     const res = await app.handle(
-      new Request('http://localhost:3001/api/admin/ping', {
+      new Request('http://localhost:3001/api/v1/old-school/ping', {
+        headers: { Authorization: 'Bearer valid-user-token' },
+      })
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it('GET /api/v1/old-school/ping returns 200 for admin DB role', async () => {
+    const res = await app.handle(
+      new Request('http://localhost:3001/api/v1/old-school/ping', {
         headers: { Authorization: 'Bearer valid-admin-token' },
       })
     );
-    // Route was removed; 404 means RBAC is scoped to modules not global
-    expect([404, 200]).toContain(res.status);
+    const json = await res.json();
+    expect(res.status).toBe(200);
+    expect(json.ok).toBe(true);
+  });
+
+  it('legacy admin ping routes return 404', async () => {
+    const headers = { Authorization: 'Bearer valid-admin-token' };
+    const oldGlobal = await app.handle(new Request('http://localhost:3001/api/admin/ping', { headers }));
+    const oldV1 = await app.handle(new Request('http://localhost:3001/api/v1/admin/ping', { headers }));
+    expect(oldGlobal.status).toBe(404);
+    expect(oldV1.status).toBe(404);
   });
 });
