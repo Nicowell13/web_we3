@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { requireRole } from '../../middleware/auth';
 import { deleteCloudinaryImage, uploadBannerToCloudinary } from '../../lib/cloudinary';
 
-const keys = ['HOME_BANNER_TITLE', 'HOME_BANNER_SUBTITLE', 'HOME_BANNER_CTA_TEXT', 'HOME_BANNER_CTA_URL', 'HOME_BANNER_IMAGE_URL', 'HOME_BANNER_ACTIVE'] as const;
+const keys = ['HOME_BANNER_TITLE', 'HOME_BANNER_SUBTITLE', 'HOME_BANNER_CTA_TEXT', 'HOME_BANNER_CTA_URL', 'HOME_BANNER_IMAGE_URL', 'HOME_BANNER_MOBILE_IMAGE_URL', 'HOME_BANNER_ACTIVE'] as const;
 
 async function getBannerConfig() {
   const rows = await db.query.systemConfigs.findMany({ where: (table, { inArray }) => inArray(table.key, [...keys]) });
@@ -16,6 +16,8 @@ async function getBannerConfig() {
     ctaText: map.HOME_BANNER_CTA_TEXT ?? 'JELAJAHI KATALOG',
     ctaUrl: map.HOME_BANNER_CTA_URL ?? '/catalog',
     imageUrl: map.HOME_BANNER_IMAGE_URL ?? '',
+    desktopImageUrl: map.HOME_BANNER_IMAGE_URL ?? '',
+    mobileImageUrl: map.HOME_BANNER_MOBILE_IMAGE_URL ?? '',
     isActive: map.HOME_BANNER_ACTIVE !== 'false',
   };
 }
@@ -38,12 +40,15 @@ export const bannerAdminRoutes = new Elysia({ prefix: '/api/v1/old-school' })
     return { ok: true, banner: await getBannerConfig() };
   })
   .post('/banners/image', async ({ body, set }) => {
-    const { image } = body as { image?: string };
+    const { image, variant } = body as { image?: string; variant?: 'desktop' | 'mobile' };
     if (!image) { set.status = 400; return { ok: false, message: 'Image payload is required' }; }
+    const selectedVariant = variant === 'mobile' ? 'mobile' : 'desktop';
     const current = await getBannerConfig();
-    const imageUrl = await uploadBannerToCloudinary(image, `home_${Date.now()}`);
-    await setConfig('HOME_BANNER_IMAGE_URL', imageUrl);
-    if (current.imageUrl && current.imageUrl !== imageUrl) deleteCloudinaryImage(current.imageUrl).catch(console.error);
-    await db.insert(auditTrails).values({ eventType: 'BANNER_IMAGE_CHANGE', referenceId: 'home' });
-    return { ok: true, imageUrl };
+    const configKey = selectedVariant === 'mobile' ? 'HOME_BANNER_MOBILE_IMAGE_URL' : 'HOME_BANNER_IMAGE_URL';
+    const oldUrl = selectedVariant === 'mobile' ? current.mobileImageUrl : current.desktopImageUrl;
+    const imageUrl = await uploadBannerToCloudinary(image, `home_${selectedVariant}_${Date.now()}`, selectedVariant);
+    await setConfig(configKey, imageUrl);
+    if (oldUrl && oldUrl !== imageUrl) deleteCloudinaryImage(oldUrl).catch(console.error);
+    await db.insert(auditTrails).values({ eventType: 'BANNER_IMAGE_CHANGE', referenceId: `home_${selectedVariant}` });
+    return { ok: true, imageUrl, variant: selectedVariant };
   });

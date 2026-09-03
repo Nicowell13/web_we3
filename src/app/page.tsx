@@ -40,7 +40,16 @@ async function getHomeBanner() {
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/home-banner`, { cache: 'no-store' });
     if (!res.ok) throw new Error('banner unavailable');
-    return (await res.json()).banner as { title: string; subtitle: string; ctaText: string; ctaUrl: string; imageUrl: string; isActive: boolean };
+    return (await res.json()).banner as {
+      title: string;
+      subtitle: string;
+      ctaText: string;
+      ctaUrl: string;
+      imageUrl: string;
+      desktopImageUrl: string;
+      mobileImageUrl: string;
+      isActive: boolean;
+    };
   } catch { return null; }
 }
 
@@ -53,11 +62,23 @@ export default async function HomePage() {
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
 
-        {banner?.isActive && banner.imageUrl && (
-          <div className="absolute inset-y-0 right-0 hidden lg:block w-1/2 opacity-35">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={banner.imageUrl} alt="Promo banner" className="h-full w-full object-cover" />
-          </div>
+        {banner?.isActive && (banner.desktopImageUrl || banner.mobileImageUrl) && (
+          <>
+            {/* Desktop promo image */}
+            {banner.desktopImageUrl && (
+              <div className="absolute inset-y-0 right-0 hidden lg:block w-1/2 opacity-35">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={banner.desktopImageUrl} alt="Desktop Promo Banner" className="h-full w-full object-cover" />
+              </div>
+            )}
+            {/* Mobile/Tablet promo image */}
+            {(banner.mobileImageUrl || banner.desktopImageUrl) && (
+              <div className="block lg:hidden w-full mb-4 rounded-xl overflow-hidden border border-surface-border max-h-48 relative z-10">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={banner.mobileImageUrl || banner.desktopImageUrl} alt="Mobile Promo Banner" className="w-full h-full object-cover" />
+              </div>
+            )}
+          </>
         )}
         <div className="max-w-3xl space-y-6 relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-primary/40 text-primary text-xs font-semibold uppercase tracking-wider">

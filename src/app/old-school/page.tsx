@@ -22,7 +22,16 @@ type SystemConfig = { id: string; key: string; value: string; description: strin
 type AdminProduct = { id: string; denomination: string; basePrice: string; sellPrice: string; isActive: boolean; supplierStatus: string; gameId: string };
 type AdminVoucher = { id: string; code: string; discountType: string; discountValue: string; quota: number; quotaUsed: number; isActive: boolean; expiresAt: string };
 type AdminUser = { id: string; email: string; name: string | null; status: string; role: string; bannedReason: string | null };
-type HomeBanner = { title: string; subtitle: string; ctaText: string; ctaUrl: string; imageUrl: string; isActive: boolean };
+type HomeBanner = {
+  title: string;
+  subtitle: string;
+  ctaText: string;
+  ctaUrl: string;
+  imageUrl: string;
+  desktopImageUrl: string;
+  mobileImageUrl: string;
+  isActive: boolean;
+};
 
 export default function OldSchoolPage() {
   const { user, loading: authLoading, signInWithGoogle } = useAuth();
@@ -231,10 +240,53 @@ export default function OldSchoolPage() {
           <label className="flex items-center gap-2 text-xs text-slate-300"><input id="banner-active" type="checkbox" defaultChecked={banner.isActive} /> Active</label>
           <textarea id="banner-subtitle" defaultValue={banner.subtitle} className="md:col-span-2 bg-black/40 border border-surface-border rounded px-3 py-2 text-xs text-white" placeholder="Subtitle" />
         </div>
-        {banner.imageUrl && <img src={banner.imageUrl} alt="Home banner" className="max-h-48 rounded-lg object-cover border border-surface-border" />}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-slate-300">Desktop Banner (1200px)</p>
+            {banner.desktopImageUrl ? (
+              <img src={banner.desktopImageUrl} alt="Desktop banner" className="max-h-36 w-full rounded-lg object-cover border border-surface-border" />
+            ) : (
+              <p className="text-[11px] text-slate-500 italic">Belum ada banner desktop.</p>
+            )}
+            <input
+              id="banner-image-desktop"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="text-xs text-slate-300 block w-full"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => adminAction('/api/v1/old-school/banners/image', 'POST', { image: reader.result, variant: 'desktop' });
+                reader.readAsDataURL(file);
+              }}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-slate-300">Mobile Banner (720px)</p>
+            {banner.mobileImageUrl ? (
+              <img src={banner.mobileImageUrl} alt="Mobile banner" className="max-h-36 w-full rounded-lg object-cover border border-surface-border" />
+            ) : (
+              <p className="text-[11px] text-slate-500 italic">Belum ada banner mobile.</p>
+            )}
+            <input
+              id="banner-image-mobile"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="text-xs text-slate-300 block w-full"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => adminAction('/api/v1/old-school/banners/image', 'POST', { image: reader.result, variant: 'mobile' });
+                reader.readAsDataURL(file);
+              }}
+            />
+          </div>
+        </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => adminAction('/api/v1/old-school/banners', 'POST', { title: (document.getElementById('banner-title') as HTMLInputElement).value, subtitle: (document.getElementById('banner-subtitle') as HTMLTextAreaElement).value, ctaText: (document.getElementById('banner-cta') as HTMLInputElement).value, ctaUrl: (document.getElementById('banner-url') as HTMLInputElement).value, isActive: (document.getElementById('banner-active') as HTMLInputElement).checked })} className="px-3 py-2 rounded bg-primary/20 border border-primary/40 text-primary text-xs">Save Banner</button>
-          <input id="banner-image" type="file" accept="image/png,image/jpeg,image/webp" className="text-xs text-slate-300" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => adminAction('/api/v1/old-school/banners/image', 'POST', { image: reader.result }); reader.readAsDataURL(file); }} />
+          <button onClick={() => adminAction('/api/v1/old-school/banners', 'POST', { title: (document.getElementById('banner-title') as HTMLInputElement).value, subtitle: (document.getElementById('banner-subtitle') as HTMLTextAreaElement).value, ctaText: (document.getElementById('banner-cta') as HTMLInputElement).value, ctaUrl: (document.getElementById('banner-url') as HTMLInputElement).value, isActive: (document.getElementById('banner-active') as HTMLInputElement).checked })} className="px-3 py-2 rounded bg-primary/20 border border-primary/40 text-primary text-xs">Save Banner Text</button>
         </div>
       </div>}
 

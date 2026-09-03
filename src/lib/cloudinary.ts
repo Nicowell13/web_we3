@@ -63,8 +63,9 @@ export async function uploadAvatarToCloudinary(
  * Delete an old avatar from Cloudinary by extracting its public_id from the Cloudinary URL.
  * Only deletes if the URL is hosted on Cloudinary and in the wetri folder.
  */
-export async function uploadBannerToCloudinary(fileBufferOrBase64: string | Buffer, publicId?: string): Promise<string> {
-  return uploadWebPToCloudinary(fileBufferOrBase64, 'wetri/banners', publicId, 1200);
+export async function uploadBannerToCloudinary(fileBufferOrBase64: string | Buffer, publicId?: string, variant: 'desktop' | 'mobile' = 'desktop'): Promise<string> {
+  const size = variant === 'mobile' ? 720 : 1200;
+  return uploadWebPToCloudinary(fileBufferOrBase64, 'wetri/banners', publicId, size);
 }
 
 export async function deleteCloudinaryImage(url?: string | null): Promise<boolean> {
