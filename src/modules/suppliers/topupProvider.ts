@@ -22,4 +22,7 @@ export interface TopUpProvider {
    * Check order status by supplier order reference.
    */
   checkOrderStatus(orderRef: string): Promise<any>;
+
+  /** Fetch supplier product catalog for admin synchronization. */
+  getProducts?(): Promise<any[]>;
 }

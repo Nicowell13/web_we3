@@ -55,6 +55,16 @@ export class DigiflazzAdapter implements TopUpProvider {
     });
   }
 
+  async getProducts() {
+    const sign = makeSignature(this.username, this.apiKey, 'pricelist');
+    return post('/price-list', {
+      cmd: 'prepaid',
+      username: this.username,
+      sign,
+      code: 'all',
+    });
+  }
+
   async checkOrderStatus(orderRef: string) {
     const sign = makeSignature(this.username, this.apiKey, orderRef);
     return post('/transaction', {

@@ -4,6 +4,7 @@ import { getAdminMetrics, getRecentAuditLogs, getSystemConfigs, updateSystemConf
 import { db } from '../../db';
 import { auditTrails, users } from '../../db/schema';
 import { desc, eq, ilike } from 'drizzle-orm';
+import { syncDigiflazzProducts } from './product-sync.service';
 
 /**
  * Old-school admin panel API – admin‑only protected.
@@ -16,6 +17,10 @@ import { desc, eq, ilike } from 'drizzle-orm';
 export const adminRoutes = new Elysia({ prefix: '/api/v1/old-school' })
   .use(requireRole('admin'))
   .get('/ping', () => ({ ok: true, scope: 'old-school' }))
+  .post('/suppliers/digiflazz/sync-products', async ({ set }) => {
+    try { return { ok: true, ...(await syncDigiflazzProducts()) }; }
+    catch (error) { set.status = 502; return { ok: false, message: error instanceof Error ? error.message : 'Product sync failed' }; }
+  })
   .get('/metrics', async () => {
     const data = await getAdminMetrics();
     return { ok: true, ...data };
