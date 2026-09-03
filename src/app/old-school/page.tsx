@@ -18,13 +18,10 @@ type AuditLog = {
   createdAt: string;
 };
 
-type SystemConfig = {
-  id: string;
-  key: string;
-  value: string;
-  description: string | null;
-  isActive: boolean;
-};
+type SystemConfig = { id: string; key: string; value: string; description: string | null; isActive: boolean };
+type AdminProduct = { id: string; denomination: string; basePrice: string; sellPrice: string; isActive: boolean; supplierStatus: string; gameId: string };
+type AdminVoucher = { id: string; code: string; discountType: string; discountValue: string; quota: number; quotaUsed: number; isActive: boolean; expiresAt: string };
+type AdminUser = { id: string; email: string; name: string | null; status: string; role: string; bannedReason: string | null };
 
 export default function OldSchoolPage() {
   const { user, loading: authLoading, signInWithGoogle } = useAuth();
@@ -34,6 +31,10 @@ export default function OldSchoolPage() {
   const [configs, setConfigs] = useState<SystemConfig[]>([]);
   const [loadingData, setLoadingData] = useState(false);
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [products, setProducts] = useState<AdminProduct[]>([]);
+  const [vouchers, setVouchers] = useState<AdminVoucher[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [actionMessage, setActionMessage] = useState('');
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -64,10 +65,13 @@ export default function OldSchoolPage() {
 
       setAccessState('allowed');
 
-      const [mRes, lRes, cRes] = await Promise.all([
+      const [mRes, lRes, cRes, pRes, vRes, uRes] = await Promise.all([
         fetch(`${apiBase}/api/v1/old-school/metrics`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/audit-logs`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/configs`, { headers }),
+        fetch(`${apiBase}/api/v1/old-school/products`, { headers }),
+        fetch(`${apiBase}/api/v1/old-school/vouchers`, { headers }),
+        fetch(`${apiBase}/api/v1/old-school/users`, { headers }),
       ]);
 
       if (mRes.ok) {
@@ -82,10 +86,10 @@ export default function OldSchoolPage() {
         const l = await lRes.json();
         setLogs(l.logs ?? []);
       }
-      if (cRes.ok) {
-        const c = await cRes.json();
-        setConfigs(c.configs ?? []);
-      }
+      if (cRes.ok) { const c = await cRes.json(); setConfigs(c.configs ?? []); }
+      if (pRes.ok) { const p = await pRes.json(); setProducts(p.products ?? []); }
+      if (vRes.ok) { const v = await vRes.json(); setVouchers(v.vouchers ?? []); }
+      if (uRes.ok) { const u = await uRes.json(); setUsers(u.users ?? []); }
     } catch {
       setAccessState('forbidden');
     } finally {
@@ -98,6 +102,14 @@ export default function OldSchoolPage() {
       verifyAndLoad();
     }
   }, [user, authLoading]);
+
+  const adminAction = async (path: string, method: string, body?: unknown) => {
+    if (!user) return;
+    const token = await user.getIdToken();
+    const res = await fetch(`${apiBase}${path}`, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+    setActionMessage(res.ok ? 'Perubahan tersimpan.' : 'Perubahan gagal.');
+    if (res.ok) await verifyAndLoad();
+  };
 
   const handleUpdateConfig = async (key: string, value: string) => {
     if (!user) return;
@@ -204,7 +216,24 @@ export default function OldSchoolPage() {
         </div>
       </div>
 
+      {actionMessage && <p className="text-xs text-primary font-mono">{actionMessage}</p>}
+
+      <div className="glass-panel p-6 rounded-2xl border border-surface-border space-y-4">
+        <h2 className="text-base font-cyber font-bold text-white">Products & Digiflazz</h2>
+        <button onClick={() => adminAction('/api/v1/old-school/suppliers/digiflazz/sync-products', 'POST')} className="px-3 py-2 rounded bg-primary/20 border border-primary/40 text-primary text-xs">Sync Digiflazz</button>
+        <div className="space-y-2 max-h-80 overflow-y-auto">{products.map(p => <div key={p.id} className="flex items-center justify-between gap-3 p-2 rounded bg-surface text-xs"><span>{p.gameId} / {p.denomination}</span><span>Rp {Number(p.sellPrice).toLocaleString('id-ID')}</span><button onClick={() => adminAction(`/api/v1/old-school/products/${p.id}`, 'PATCH', { isActive: !p.isActive })} className="text-primary">{p.isActive ? 'Disable' : 'Enable'}</button></div>)}</div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="glass-panel p-6 rounded-2xl border border-surface-border space-y-4">
+          <h2 className="text-base font-cyber font-bold text-white">Vouchers</h2>
+          {vouchers.map(v => <div key={v.id} className="flex items-center justify-between p-2 rounded bg-surface text-xs"><span>{v.code} · {v.discountValue} {v.discountType}</span><button onClick={() => adminAction(`/api/v1/old-school/vouchers/${v.id}`, 'PATCH', { isActive: !v.isActive })} className="text-primary">{v.isActive ? 'Disable' : 'Enable'}</button></div>)}
+        </div>
+        <div className="glass-panel p-6 rounded-2xl border border-surface-border space-y-4">
+          <h2 className="text-base font-cyber font-bold text-white">Users</h2>
+          {users.map(u => <div key={u.id} className="flex items-center justify-between p-2 rounded bg-surface text-xs"><span>{u.name || u.email} · {u.status}</span><button onClick={() => adminAction(`/api/v1/old-school/users/${u.id}/status`, 'POST', { status: u.status === 'banned' ? 'active' : 'banned', reason: 'Admin action' })} className="text-primary">{u.status === 'banned' ? 'Unban' : 'Ban'}</button></div>)}
+        </div>
+
         {/* System Configs */}
         <div className="glass-panel p-6 rounded-2xl border border-surface-border space-y-4">
           <div className="flex items-center gap-2">
