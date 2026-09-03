@@ -2,7 +2,7 @@ import { Elysia } from 'elysia';
 import { requireRole } from '../../middleware/auth';
 import { getAdminMetrics, getRecentAuditLogs, getSystemConfigs, updateSystemConfig } from './admin.service';
 import { db } from '../../db';
-import { users } from '../../db/schema';
+import { auditTrails, users } from '../../db/schema';
 import { desc, eq, ilike } from 'drizzle-orm';
 
 /**
@@ -60,6 +60,11 @@ export const adminRoutes = new Elysia({ prefix: '/api/v1/old-school' })
       updatedAt: new Date(),
     }).where(eq(users.id, params.id)).returning({ id: users.id, status: users.status, bannedAt: users.bannedAt, bannedReason: users.bannedReason });
     if (!updated) { set.status = 404; return { ok: false, message: 'User not found' }; }
+    await db.insert(auditTrails).values({
+      eventType: 'USER_STATUS_CHANGE',
+      referenceId: params.id,
+      rawRequest: { status: payload.status, reason: payload.reason ?? null },
+    });
     return { ok: true, user: updated };
   });
 
