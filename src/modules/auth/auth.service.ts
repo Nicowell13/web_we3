@@ -1,7 +1,7 @@
 import { db } from '../../db';
 import { users } from '../../db/schema';
 import { eq } from 'drizzle-orm';
-import { getDicebearAvatarUrl } from '../../lib/cloudinary';
+import { createDefaultAvatar } from '../../lib/cloudinary';
 
 export type UpsertUserPayload = {
   id: string;       // Firebase UID
@@ -19,16 +19,18 @@ export async function syncUserFromFirebase(payload: UpsertUserPayload) {
     where: eq(users.id, payload.id),
   });
 
-  const fallbackAvatar = getDicebearAvatarUrl(payload.id);
-
   if (existing) {
-    // Keep a stable app avatar when Google photo is missing; never overwrite uploaded avatar.
-    if (payload.name || !existing.avatarUrl) {
+    // Preserve user-uploaded avatar; migrate empty/legacy DiceBear URL to persistent Cloudinary image.
+    const needsDefaultAvatar = !existing.avatarUrl || !existing.avatarUrl.includes('res.cloudinary.com');
+    if (payload.name || needsDefaultAvatar) {
+      const avatarUrl = needsDefaultAvatar
+        ? await createDefaultAvatar(payload.id)
+        : existing.avatarUrl;
       const [updated] = await db
         .update(users)
         .set({
           name: payload.name ?? existing.name,
-          avatarUrl: existing.avatarUrl ?? payload.avatarUrl ?? fallbackAvatar,
+          avatarUrl,
           updatedAt: new Date(),
         })
         .where(eq(users.id, payload.id))
@@ -38,14 +40,15 @@ export async function syncUserFromFirebase(payload: UpsertUserPayload) {
     return existing;
   }
 
-  // First login: insert new user row with stable default avatar
+  // First login: generate one random avatar and persist its Cloudinary URL.
+  const avatarUrl = await createDefaultAvatar(payload.id);
   const [created] = await db
     .insert(users)
     .values({
       id: payload.id,
       email: payload.email,
       name: payload.name,
-      avatarUrl: payload.avatarUrl ?? fallbackAvatar,
+      avatarUrl,
       role: 'user',
       points: 0,
       streak: 0,

@@ -89,9 +89,19 @@ export async function deleteAvatarFromCloudinary(url?: string | null): Promise<b
   }
 }
 
-/**
- * Generate a DiceBear Bottts avatar SVG URL for an initial user profile.
- */
+/** Generate a DiceBear Bottts avatar SVG URL. */
 export function getDicebearAvatarUrl(seed: string): string {
   return `https://api.dicebear.com/9.x/bottts/svg?seed=${encodeURIComponent(seed)}`;
+}
+
+/** Generate one random DiceBear avatar, upload it to Cloudinary, and return persistent URL. */
+export async function createDefaultAvatar(userId: string): Promise<string> {
+  const seed = crypto.randomUUID();
+  const response = await fetch(getDicebearAvatarUrl(seed));
+  if (!response.ok) throw new Error(`DiceBear avatar generation failed (${response.status})`);
+
+  return uploadAvatarToCloudinary(
+    Buffer.from(await response.arrayBuffer()),
+    `default_${userId}_${Date.now()}`
+  );
 }

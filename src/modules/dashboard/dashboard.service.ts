@@ -1,7 +1,7 @@
 import { db } from '../../db';
 import { users, transactions, userVouchers, vouchers, gamesCatalog } from '../../db/schema';
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
-import { getDicebearAvatarUrl } from '../../lib/cloudinary';
+import { createDefaultAvatar } from '../../lib/cloudinary';
 
 export interface TimelineItem {
   id: string;
@@ -23,8 +23,8 @@ export async function getDashboardData(userId: string) {
   // 1. User profile
   let user = await db.query.users.findFirst({ where: eq(users.id, userId) });
   if (!user) {
-    // Generate default avatar if not exists
-    const fallbackAvatar = getDicebearAvatarUrl(userId);
+    // Generate persistent random default avatar if user sync has not run yet.
+    const fallbackAvatar = await createDefaultAvatar(userId);
     const [created] = await db
       .insert(users)
       .values({
@@ -40,10 +40,10 @@ export async function getDashboardData(userId: string) {
     user = created;
   }
 
-  // Ensure user has stable avatar persisted in DB, so refresh/check-in never makes it disappear.
+  // Migrate empty/legacy external avatar to persistent Cloudinary image.
   let avatar = user.avatarUrl;
-  if (!avatar) {
-    avatar = getDicebearAvatarUrl(user.id);
+  if (!avatar || !avatar.includes('res.cloudinary.com')) {
+    avatar = await createDefaultAvatar(user.id);
     await db
       .update(users)
       .set({ avatarUrl: avatar, updatedAt: new Date() })
