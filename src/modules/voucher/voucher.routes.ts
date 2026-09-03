@@ -33,7 +33,12 @@ export async function validateVoucherEligibility(
     return { eligible: false, reason: 'Invalid or inactive voucher' };
   }
 
-  if (new Date(voucher.expiresAt) <= new Date()) {
+  const now = new Date();
+  if (voucher.startAt && new Date(voucher.startAt) > now) {
+    return { eligible: false, reason: 'Voucher belum aktif' };
+  }
+
+  if (new Date(voucher.expiresAt) <= now) {
     return { eligible: false, reason: 'Voucher expired' };
   }
 

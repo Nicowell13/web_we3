@@ -174,6 +174,7 @@ export const vouchers = pgTable(
     dailyLimit: integer('daily_limit'), // limit pemakaian per hari untuk voucher new_user / promo
     pointsRequired: integer('points_required').default(0).notNull(), // poin yang ditukarkan (khusus loyalty_points)
     isPublic: boolean('is_public').default(true).notNull(),
+    startAt: timestamp('start_at', { withTimezone: true }).defaultNow().notNull(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     isActive: boolean('is_active').default(true).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

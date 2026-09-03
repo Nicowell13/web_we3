@@ -34,6 +34,7 @@ type AdminVoucher = {
   pointsRequired: number;
   isPublic: boolean;
   isActive: boolean;
+  startAt?: string;
   expiresAt: string;
 };
 type AdminUser = { id: string; email: string; name: string | null; status: string; role: string; bannedReason: string | null };
@@ -63,6 +64,22 @@ export default function OldSchoolPage() {
   const [banner, setBanner] = useState<HomeBanner | null>(null);
   const [editingVoucher, setEditingVoucher] = useState<AdminVoucher | null>(null);
   const [showAddVoucher, setShowAddVoucher] = useState(false);
+  const [createVoucherType, setCreateVoucherType] = useState<'new_user' | 'promo' | 'loyalty_points'>('promo');
+
+  // Helper date states for Create Voucher
+  const now = new Date();
+  const [startDay, setStartDay] = useState(now.getDate());
+  const [startMonth, setStartMonth] = useState(now.getMonth() + 1);
+  const [startYear, setStartYear] = useState(now.getFullYear());
+  const [startHour, setStartHour] = useState(now.getHours());
+  const [startMinute, setStartMinute] = useState(0);
+
+  const defaultExp = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const [expDay, setExpDay] = useState(defaultExp.getDate());
+  const [expMonth, setExpMonth] = useState(defaultExp.getMonth() + 1);
+  const [expYear, setExpYear] = useState(defaultExp.getFullYear());
+  const [expHour, setExpHour] = useState(23);
+  const [expMinute, setExpMinute] = useState(59);
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -343,53 +360,154 @@ export default function OldSchoolPage() {
 
           {/* Form Add Voucher */}
           {showAddVoucher && (
-            <div className="p-4 rounded-xl bg-surface border border-primary/40 space-y-3">
-              <h3 className="text-xs font-cyber font-bold text-primary uppercase">Buat Voucher Baru</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <input id="v-code" placeholder="Kode (e.g. NEWBIE50 / PROMO10 / LOYAL500)" className="bg-black/40 border border-surface-border rounded p-2 text-white uppercase font-mono" />
-                <select id="v-voucher-type" className="bg-black/40 border border-surface-border rounded p-2 text-white font-semibold">
-                  <option value="promo">Promo Umum (Semua User)</option>
-                  <option value="new_user">New User Only (Ada Limit Harian)</option>
-                  <option value="loyalty_points">Loyalty Points (Tukar Point)</option>
-                </select>
-                <select id="v-type" className="bg-black/40 border border-surface-border rounded p-2 text-white">
-                  <option value="fixed">Fixed (Nominal Rp)</option>
-                  <option value="percentage">Percentage (%)</option>
-                </select>
-                <input id="v-value" type="number" placeholder="Nilai Diskon (e.g. 10000 atau 10)" className="bg-black/40 border border-surface-border rounded p-2 text-white" />
-                <input id="v-min" type="number" placeholder="Min Transaksi (e.g. 50000)" className="bg-black/40 border border-surface-border rounded p-2 text-white" />
-                <input id="v-max" type="number" placeholder="Max Diskon (opsional)" className="bg-black/40 border border-surface-border rounded p-2 text-white" />
-                <input id="v-quota" type="number" placeholder="Quota Total (e.g. 100)" defaultValue={100} className="bg-black/40 border border-surface-border rounded p-2 text-white" />
-                <input id="v-daily-limit" type="number" placeholder="Limit Harian (khusus user baru)" className="bg-black/40 border border-surface-border rounded p-2 text-white" />
-                <input id="v-points" type="number" placeholder="Points Required (khusus tukar poin)" defaultValue={0} className="bg-black/40 border border-surface-border rounded p-2 text-white" />
-                <input id="v-expires" type="datetime-local" className="bg-black/40 border border-surface-border rounded p-2 text-white" />
+            <div className="p-4 rounded-xl bg-surface border border-primary/40 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-cyber font-bold text-primary uppercase">Buat Voucher Baru</h3>
+                <span className="text-[10px] text-slate-400 font-mono">Tipe: {createVoucherType.toUpperCase()}</span>
               </div>
+
+              {/* Pilihan Jenis Voucher */}
+              <div>
+                <label className="text-[10px] text-slate-400 font-semibold block mb-1">Pilih Jenis Voucher</label>
+                <select
+                  value={createVoucherType}
+                  onChange={(e) => setCreateVoucherType(e.target.value as any)}
+                  className="w-full bg-black/40 border border-surface-border rounded p-2 text-xs text-primary font-bold"
+                >
+                  <option value="promo">1. Promo Umum (Bisa Dipakai Semua User)</option>
+                  <option value="new_user">2. New User Only (Order Pertama + Limit Harian)</option>
+                  <option value="loyalty_points">3. Loyalty Points (Tukarkan Loyalty Point)</option>
+                </select>
+              </div>
+
+              {/* Kolom Form Dinamis */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-0.5">Kode Voucher</label>
+                  <input id="v-code" placeholder="e.g. WETRINEW / PROMO50 / LOYAL100" className="w-full bg-black/40 border border-surface-border rounded p-2 text-white uppercase font-mono" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-0.5">Tipe Diskon</label>
+                  <select id="v-type" className="w-full bg-black/40 border border-surface-border rounded p-2 text-white">
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="fixed">Fixed (Nominal Rp)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-0.5">Nilai Diskon (% atau Rp)</label>
+                  <input id="v-value" type="number" placeholder="e.g. 10 atau 15000" className="w-full bg-black/40 border border-surface-border rounded p-2 text-white" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-0.5">Total Kuota Tersedia</label>
+                  <input id="v-quota" type="number" placeholder="Total Kuota (e.g. 100)" defaultValue={100} className="w-full bg-black/40 border border-surface-border rounded p-2 text-white" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-0.5">Min Transaksi (Rp)</label>
+                  <input id="v-min" type="number" placeholder="0 jika tanpa min transaksi" defaultValue={0} className="w-full bg-black/40 border border-surface-border rounded p-2 text-white" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-0.5">Max Diskon (Cap Rp, opsional)</label>
+                  <input id="v-max" type="number" placeholder="Max potongan jika % (opsional)" className="w-full bg-black/40 border border-surface-border rounded p-2 text-white" />
+                </div>
+
+                {/* Kolom Khusus: new_user */}
+                {createVoucherType === 'new_user' && (
+                  <div className="sm:col-span-2 p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                    <label className="text-[10px] text-blue-300 font-bold block mb-0.5">Limit Pemakaian Per Hari (Daily Limit)</label>
+                    <input id="v-daily-limit" type="number" placeholder="Batas klaim per hari (e.g. 20)" defaultValue={20} className="w-full bg-black/40 border border-blue-500/40 rounded p-2 text-white text-xs" />
+                    <p className="text-[10px] text-blue-300/80 mt-1">Otomatis hanya berlaku untuk user yang belum pernah memiliki riwayat transaksi SUCCESS.</p>
+                  </div>
+                )}
+
+                {/* Kolom Khusus: loyalty_points */}
+                {createVoucherType === 'loyalty_points' && (
+                  <div className="sm:col-span-2 p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/30">
+                    <label className="text-[10px] text-purple-300 font-bold block mb-0.5">Poin Royalty Diperlukan (Points Required)</label>
+                    <input id="v-points" type="number" placeholder="Poin yang dipotong dari user (e.g. 50)" defaultValue={50} className="w-full bg-black/40 border border-purple-500/40 rounded p-2 text-white text-xs" />
+                    <p className="text-[10px] text-purple-300/80 mt-1">Sistem akan memeriksa saldo poin user dan memotong poin secara otomatis saat voucher dipakai.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Tanggal Mulai & Berakhir dengan Dropdown */}
+              <div className="space-y-3 pt-2 border-t border-surface-border">
+                {/* Tanggal Mulai Aktif */}
+                <div>
+                  <label className="text-[10px] text-slate-400 font-semibold block mb-1">Tanggal & Waktu Mulai Aktif</label>
+                  <div className="grid grid-cols-5 gap-1.5 text-xs font-mono">
+                    <select value={startDay} onChange={(e) => setStartDay(Number(e.target.value))} className="bg-black/40 border border-surface-border rounded p-1.5 text-white">
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>Tgl {d}</option>)}
+                    </select>
+                    <select value={startMonth} onChange={(e) => setStartMonth(Number(e.target.value))} className="bg-black/40 border border-surface-border rounded p-1.5 text-white">
+                      {['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'].map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+                    </select>
+                    <select value={startYear} onChange={(e) => setStartYear(Number(e.target.value))} className="bg-black/40 border border-surface-border rounded p-1.5 text-white">
+                      {[2026, 2027, 2028].map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                    <select value={startHour} onChange={(e) => setStartHour(Number(e.target.value))} className="bg-black/40 border border-surface-border rounded p-1.5 text-white">
+                      {Array.from({ length: 24 }, (_, i) => i).map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>)}
+                    </select>
+                    <select value={startMinute} onChange={(e) => setStartMinute(Number(e.target.value))} className="bg-black/40 border border-surface-border rounded p-1.5 text-white">
+                      {[0, 15, 30, 45, 59].map(min => <option key={min} value={min}>:{String(min).padStart(2, '0')}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Tanggal Berakhir */}
+                <div>
+                  <label className="text-[10px] text-slate-400 font-semibold block mb-1">Tanggal & Waktu Berakhir (Expire)</label>
+                  <div className="grid grid-cols-5 gap-1.5 text-xs font-mono">
+                    <select value={expDay} onChange={(e) => setExpDay(Number(e.target.value))} className="bg-black/40 border border-surface-border rounded p-1.5 text-white">
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>Tgl {d}</option>)}
+                    </select>
+                    <select value={expMonth} onChange={(e) => setExpMonth(Number(e.target.value))} className="bg-black/40 border border-surface-border rounded p-1.5 text-white">
+                      {['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'].map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+                    </select>
+                    <select value={expYear} onChange={(e) => setExpYear(Number(e.target.value))} className="bg-black/40 border border-surface-border rounded p-1.5 text-white">
+                      {[2026, 2027, 2028].map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                    <select value={expHour} onChange={(e) => setExpHour(Number(e.target.value))} className="bg-black/40 border border-surface-border rounded p-1.5 text-white">
+                      {Array.from({ length: 24 }, (_, i) => i).map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>)}
+                    </select>
+                    <select value={expMinute} onChange={(e) => setExpMinute(Number(e.target.value))} className="bg-black/40 border border-surface-border rounded p-1.5 text-white">
+                      {[0, 15, 30, 45, 59].map(min => <option key={min} value={min}>:{String(min).padStart(2, '0')}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
               <button
                 onClick={async () => {
                   const code = (document.getElementById('v-code') as HTMLInputElement)?.value;
-                  const voucherType = (document.getElementById('v-voucher-type') as HTMLSelectElement)?.value || 'promo';
                   const discountType = (document.getElementById('v-type') as HTMLSelectElement)?.value;
                   const discountValue = (document.getElementById('v-value') as HTMLInputElement)?.value;
                   const minPurchase = (document.getElementById('v-min') as HTMLInputElement)?.value || '0';
                   const maxDiscount = (document.getElementById('v-max') as HTMLInputElement)?.value || null;
                   const quota = (document.getElementById('v-quota') as HTMLInputElement)?.value || '100';
-                  const dailyLimit = (document.getElementById('v-daily-limit') as HTMLInputElement)?.value || null;
-                  const pointsRequired = (document.getElementById('v-points') as HTMLInputElement)?.value || '0';
-                  const expiresAt = (document.getElementById('v-expires') as HTMLInputElement)?.value;
+                  const dailyLimit = createVoucherType === 'new_user' ? (document.getElementById('v-daily-limit') as HTMLInputElement)?.value || null : null;
+                  const pointsRequired = createVoucherType === 'loyalty_points' ? (document.getElementById('v-points') as HTMLInputElement)?.value || '0' : '0';
 
-                  if (!code || !discountValue || !expiresAt) {
-                    setActionMessage('Kode, Nilai Diskon, dan Expired Date wajib diisi.');
+                  const startDate = new Date(startYear, startMonth - 1, startDay, startHour, startMinute);
+                  const expiresDate = new Date(expYear, expMonth - 1, expDay, expHour, expMinute);
+
+                  if (!code || !discountValue) {
+                    setActionMessage('Kode Voucher dan Nilai Diskon wajib diisi.');
                     return;
                   }
 
-                  if (voucherType === 'loyalty_points' && Number(pointsRequired) <= 0) {
+                  if (expiresDate <= startDate) {
+                    setActionMessage('Tanggal berakhir harus lebih besar dari tanggal mulai.');
+                    return;
+                  }
+
+                  if (createVoucherType === 'loyalty_points' && Number(pointsRequired) <= 0) {
                     setActionMessage('Voucher Loyalty Points membutuhkan Points Required > 0.');
                     return;
                   }
 
                   await adminAction('/api/v1/old-school/vouchers', 'POST', {
                     code: code.toUpperCase(),
-                    voucherType,
+                    voucherType: createVoucherType,
                     discountType,
                     discountValue,
                     minPurchase,
@@ -397,7 +515,8 @@ export default function OldSchoolPage() {
                     quota: Number(quota),
                     dailyLimit: dailyLimit ? Number(dailyLimit) : null,
                     pointsRequired: Number(pointsRequired),
-                    expiresAt: new Date(expiresAt).toISOString(),
+                    startAt: startDate.toISOString(),
+                    expiresAt: expiresDate.toISOString(),
                     isActive: true,
                     isPublic: true,
                   });
@@ -485,7 +604,9 @@ export default function OldSchoolPage() {
           {/* List Vouchers */}
           <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
             {vouchers.map(v => {
-              const isExpired = new Date(v.expiresAt) <= new Date();
+              const nowTime = new Date();
+              const isStarted = !v.startAt || new Date(v.startAt) <= nowTime;
+              const isExpired = new Date(v.expiresAt) <= nowTime;
               const typeBadge =
                 v.voucherType === 'new_user'
                   ? 'bg-blue-500/20 text-blue-400 border-blue-500/40'
@@ -501,14 +622,17 @@ export default function OldSchoolPage() {
                       <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold border ${typeBadge}`}>
                         {v.voucherType === 'new_user' ? 'NEW USER' : v.voucherType === 'loyalty_points' ? 'LOYALTY PTS' : 'PROMO'}
                       </span>
-                      <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold ${v.isActive && !isExpired ? 'bg-accent-green/20 text-accent-green border border-accent-green/40' : 'bg-red-500/20 text-red-400 border border-red-500/40'}`}>
-                        {!v.isActive ? 'KILLED' : isExpired ? 'EXPIRED' : 'ACTIVE'}
+                      <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold ${!v.isActive ? 'bg-red-500/20 text-red-400 border border-red-500/40' : !isStarted ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40' : isExpired ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-accent-green/20 text-accent-green border border-accent-green/40'}`}>
+                        {!v.isActive ? 'KILLED' : !isStarted ? 'UPCOMING' : isExpired ? 'EXPIRED' : 'ACTIVE'}
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-400">
                       Diskon: {v.discountValue} {v.discountType === 'percentage' ? '%' : 'Rp'} • Quota: {v.quotaUsed}/{v.quota}
                       {v.dailyLimit ? ` • Limit/Hari: ${v.dailyLimit}` : ''}
                       {v.pointsRequired > 0 ? ` • Poin: ${v.pointsRequired}` : ''}
+                    </p>
+                    <p className="text-[10px] text-slate-500 font-mono">
+                      Periode: {v.startAt ? new Date(v.startAt).toLocaleDateString('id-ID') : '-'} s/d {new Date(v.expiresAt).toLocaleDateString('id-ID')}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 self-end sm:self-center">

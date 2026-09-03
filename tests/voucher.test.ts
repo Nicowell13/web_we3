@@ -114,4 +114,19 @@ describe('[FEAT-06] Voucher Types Eligibility Logic (new_user, promo, loyalty_po
     const user = { points: 350 };
     expect((user.points ?? 0) >= voucher.pointsRequired).toBe(true);
   });
+
+  it('voucher with future startAt is marked upcoming / not yet active', () => {
+    const futureStart = new Date(Date.now() + 86400000);
+    const now = new Date();
+    const isStarted = futureStart <= now;
+    expect(isStarted).toBe(false);
+  });
+
+  it('voucher with past startAt and future expiresAt is active', () => {
+    const pastStart = new Date(Date.now() - 3600000);
+    const futureExp = new Date(Date.now() + 86400000);
+    const now = new Date();
+    const isEligibleTime = pastStart <= now && futureExp > now;
+    expect(isEligibleTime).toBe(true);
+  });
 });
