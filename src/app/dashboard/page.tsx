@@ -271,10 +271,15 @@ export default function DashboardPage() {
     return `${name.slice(0, 2)}***${name.slice(-1)}@${domain}`;
   };
 
-  const profile = data?.profile || {
-    name: user.displayName || 'Gamer WETRI',
-    email: user.email,
-    avatarUrl: user.photoURL || `https://api.dicebear.com/9.x/bottts/svg?seed=${user.uid}`,
+  const fallbackAvatarUrl = `https://api.dicebear.com/9.x/bottts/svg?seed=${encodeURIComponent(user.uid)}`;
+  const profile = {
+    ...(data?.profile || {
+      name: user.displayName || 'Gamer WETRI',
+      email: user.email,
+      avatarUrl: null,
+    }),
+    // Empty DB value must not suppress temporary DiceBear avatar.
+    avatarUrl: data?.profile?.avatarUrl || user.photoURL || fallbackAvatarUrl,
   };
   const points = data?.points ?? 0;
   const streak = data?.streak ?? 0;
