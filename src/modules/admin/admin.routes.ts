@@ -5,6 +5,7 @@ import { db } from '../../db';
 import { auditTrails, users } from '../../db/schema';
 import { desc, eq, ilike } from 'drizzle-orm';
 import { syncDigiflazzProducts } from './product-sync.service';
+import { bulkUpdateProducts, listAdminProducts, updateAdminProduct } from './product-admin.service';
 
 /**
  * Old-school admin panel API – admin‑only protected.
@@ -20,6 +21,27 @@ export const adminRoutes = new Elysia({ prefix: '/api/v1/old-school' })
   .post('/suppliers/digiflazz/sync-products', async ({ set }) => {
     try { return { ok: true, ...(await syncDigiflazzProducts()) }; }
     catch (error) { set.status = 502; return { ok: false, message: error instanceof Error ? error.message : 'Product sync failed' }; }
+  })
+  .get('/products', async ({ query }) => {
+    const q = query as { search?: string; active?: string };
+    const active = q.active === undefined ? undefined : q.active === 'true';
+    return { ok: true, products: await listAdminProducts(q.search, active) };
+  })
+  .patch('/products/:id', async ({ params, body, set }) => {
+    const patch = body as { isActive?: boolean; sellPrice?: string; marginType?: 'fixed' | 'percentage' | null; marginValue?: string | null };
+    if (patch.sellPrice !== undefined && (!/^\d+(\.\d{1,2})?$/.test(patch.sellPrice) || Number(patch.sellPrice) < 0)) {
+      set.status = 400; return { ok: false, message: 'Invalid sellPrice' };
+    }
+    const product = await updateAdminProduct(params.id, patch);
+    if (!product) { set.status = 404; return { ok: false, message: 'Product not found' }; }
+    return { ok: true, product };
+  })
+  .post('/products/bulk-status', async ({ body, set }) => {
+    const payload = body as { ids?: string[]; isActive?: boolean };
+    if (!Array.isArray(payload.ids) || !payload.ids.length || typeof payload.isActive !== 'boolean') {
+      set.status = 400; return { ok: false, message: 'ids and isActive are required' };
+    }
+    return { ok: true, updated: await bulkUpdateProducts(payload.ids, payload.isActive) };
   })
   .get('/metrics', async () => {
     const data = await getAdminMetrics();
