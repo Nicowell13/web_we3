@@ -1,6 +1,6 @@
 import { db } from '../../db';
 import { products, gamesCatalog } from '../../db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 /**
  * Fetch all active products with minimal game data.
@@ -19,7 +19,7 @@ export async function getAllActiveProducts() {
     })
     .from(products)
     .innerJoin(gamesCatalog, eq(products.gameId, gamesCatalog.id))
-    .where(eq(products.isActive, true))
+    .where(and(eq(products.isActive, true), eq(gamesCatalog.isActive, true)))
     .orderBy(products.displayOrder);
 
   return rows;

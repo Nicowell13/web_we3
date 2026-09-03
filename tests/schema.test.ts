@@ -15,6 +15,7 @@ describe('[FEAT-01] Database Schema Definition & Integrity', () => {
     expect(schema.userRoleEnum).toBeDefined();
     expect(schema.transactionStatusEnum).toBeDefined();
     expect(schema.discountTypeEnum).toBeDefined();
+    expect(schema.userStatusEnum).toBeDefined();
   });
 
   it('should have correct columns and data types in users table', () => {
@@ -25,6 +26,14 @@ describe('[FEAT-01] Database Schema Definition & Integrity', () => {
     expect(cols).toContain('streak');
     expect(cols).toContain('lastCheckinAt');
     expect(cols).toContain('role');
+    expect(cols).toContain('status');
+  });
+
+  it('should have supplier catalog and pricing columns in products table', () => {
+    const cols = Object.keys(schema.products);
+    for (const column of ['supplierCode', 'supplierProductCode', 'brand', 'productType', 'marginType', 'marginValue', 'supplierStatus', 'syncedAt', 'isActive', 'sellPrice']) {
+      expect(cols).toContain(column);
+    }
   });
 
   it('should have correct columns in transactions table', () => {

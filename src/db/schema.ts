@@ -9,6 +9,7 @@ import {
   jsonb,
   pgEnum,
   index,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -95,6 +96,12 @@ export const products = pgTable(
     sellPrice: numeric('sell_price', { precision: 12, scale: 2 }).notNull(), // Harga jual
     supplierCode: text('supplier_code').default('digiflazz').notNull(), // Default 'digiflazz'
     supplierProductCode: text('supplier_product_code').notNull(),
+    brand: text('brand'),
+    productType: text('product_type'),
+    marginType: discountTypeEnum('margin_type'),
+    marginValue: numeric('margin_value', { precision: 12, scale: 2 }),
+    supplierStatus: text('supplier_status').default('available').notNull(),
+    syncedAt: timestamp('synced_at', { withTimezone: true }),
     isActive: boolean('is_active').default(true).notNull(),
     displayOrder: integer('display_order').default(0).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -104,6 +111,7 @@ export const products = pgTable(
     index('products_game_id_idx').on(table.gameId),
     index('products_sku_idx').on(table.sku),
     index('products_active_idx').on(table.isActive),
+    uniqueIndex('products_supplier_sku_idx').on(table.supplierCode, table.supplierProductCode),
   ]
 );
 
