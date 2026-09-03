@@ -25,20 +25,83 @@ export async function claimVoucher(userId: string, voucherId: string) {
   });
 }
 
+export async function validateVoucherEligibility(
+  voucher: typeof vouchers.$inferSelect,
+  userId?: string
+): Promise<{ eligible: boolean; reason?: string }> {
+  if (!voucher || !voucher.isActive) {
+    return { eligible: false, reason: 'Invalid or inactive voucher' };
+  }
+
+  if (new Date(voucher.expiresAt) <= new Date()) {
+    return { eligible: false, reason: 'Voucher expired' };
+  }
+
+  if (voucher.quotaUsed >= voucher.quota) {
+    return { eligible: false, reason: 'Voucher quota exhausted' };
+  }
+
+  if (voucher.voucherType === 'new_user') {
+    if (!userId) {
+      return { eligible: false, reason: 'Login required for new user voucher' };
+    }
+
+    const previousSuccess = await db.query.transactions.findFirst({
+      where: and(eq(transactions.userId, userId), eq(transactions.status, 'SUCCESS')),
+      columns: { orderId: true },
+    });
+
+    if (previousSuccess) {
+      return { eligible: false, reason: 'Voucher khusus untuk user baru' };
+    }
+
+    if (voucher.dailyLimit && voucher.dailyLimit > 0) {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const usedToday = await db.query.userVouchers.findMany({
+        where: and(
+          eq(userVouchers.voucherId, voucher.id),
+          eq(userVouchers.isUsed, true),
+          sql`${userVouchers.usedAt} >= ${startOfDay}`
+        ),
+        columns: { id: true },
+      });
+
+      if (usedToday.length >= voucher.dailyLimit) {
+        return { eligible: false, reason: 'Limit harian voucher user baru telah habis' };
+      }
+    }
+  }
+
+  if (voucher.voucherType === 'loyalty_points' || voucher.pointsRequired > 0) {
+    if (!userId) {
+      return { eligible: false, reason: 'Login required to redeem loyalty points voucher' };
+    }
+    const user = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { points: true } });
+    if (!user || (user.points ?? 0) < voucher.pointsRequired) {
+      return { eligible: false, reason: 'Insufficient loyalty points for voucher' };
+    }
+  }
+
+  return { eligible: true };
+}
+
 export async function applyVoucher(orderId: string, voucherCode: string, userId: string) {
   const voucher = await findActiveVoucher(voucherCode);
-  if (!voucher || !voucher.isActive) throw new Error('Invalid or inactive voucher');
+  if (!voucher) throw new Error('Invalid or inactive voucher');
 
-  if (new Date(voucher.expiresAt) <= new Date()) throw new Error('Voucher expired');
-  if (voucher.quotaUsed >= voucher.quota) throw new Error('Voucher quota exhausted');
-  if (orderId && Number((await db.query.transactions.findFirst({ where: eq(transactions.orderId, orderId), columns: { originalAmount: true } }))?.originalAmount ?? 0) < Number(voucher.minPurchase)) throw new Error('Minimum purchase not met');
+  const check = await validateVoucherEligibility(voucher, userId);
+  if (!check.eligible) throw new Error(check.reason || 'Voucher ineligible');
+
+  if (orderId) {
+    const trx = await db.query.transactions.findFirst({ where: eq(transactions.orderId, orderId), columns: { originalAmount: true } });
+    if (trx && Number(trx.originalAmount ?? 0) < Number(voucher.minPurchase)) {
+      throw new Error('Minimum purchase not met');
+    }
+  }
 
   if (voucher.pointsRequired > 0) {
-    const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
-    if (!user) throw new Error('User not found');
-    if ((user.points ?? 0) < voucher.pointsRequired) {
-      throw new Error('Insufficient loyalty points for voucher');
-    }
     await db
       .update(users)
       .set({ points: sql`${users.points} - ${voucher.pointsRequired}` })

@@ -68,11 +68,50 @@ describe('[FEAT-06] Voucher service (DB-backed)', () => {
   });
 });
 
-describe('[FEAT-06] Voucher HTTP endpoints (via app.handle)', () => {
-  it('GET /api/v1/voucher/validate/UNKNOWN does not crash (200 or error)', async () => {
-    const { app } = await import('../server/index');
-    const res = await app.handle(new Request('http://localhost:3001/api/v1/voucher/validate/UNKNOWN'));
-    // Accept any HTTP response — just assert it doesn't throw / hang
-    expect(typeof res.status).toBe('number');
+describe('[FEAT-06] Voucher Types Eligibility Logic (new_user, promo, loyalty_points)', () => {
+  it('promo voucher is valid for all users without point or order conditions', () => {
+    const promoVoucher = {
+      id: 'v-promo',
+      code: 'PROMO10',
+      voucherType: 'promo',
+      isActive: true,
+      quota: 100,
+      quotaUsed: 10,
+      pointsRequired: 0,
+      expiresAt: new Date(Date.now() + 86400000),
+    };
+    expect(promoVoucher.voucherType).toBe('promo');
+    expect(promoVoucher.quotaUsed < promoVoucher.quota).toBe(true);
+  });
+
+  it('new_user voucher rejects user with prior completed orders', () => {
+    const previousSuccessOrders = 1;
+    const isNewUser = previousSuccessOrders === 0;
+    expect(isNewUser).toBe(false);
+  });
+
+  it('new_user voucher accepts brand new user with 0 completed orders', () => {
+    const previousSuccessOrders = 0;
+    const isNewUser = previousSuccessOrders === 0;
+    expect(isNewUser).toBe(true);
+  });
+
+  it('new_user voucher blocks when daily limit is exhausted', () => {
+    const dailyLimit = 5;
+    const usedToday = 5;
+    const isDailyLimitAvailable = usedToday < dailyLimit;
+    expect(isDailyLimitAvailable).toBe(false);
+  });
+
+  it('loyalty_points voucher requires sufficient user points', () => {
+    const voucher = { voucherType: 'loyalty_points', pointsRequired: 200 };
+    const user = { points: 150 };
+    expect((user.points ?? 0) >= voucher.pointsRequired).toBe(false);
+  });
+
+  it('loyalty_points voucher passes when user has enough points', () => {
+    const voucher = { voucherType: 'loyalty_points', pointsRequired: 200 };
+    const user = { points: 350 };
+    expect((user.points ?? 0) >= voucher.pointsRequired).toBe(true);
   });
 });

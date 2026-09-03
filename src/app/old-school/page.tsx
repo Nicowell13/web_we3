@@ -23,12 +23,14 @@ type AdminProduct = { id: string; denomination: string; basePrice: string; sellP
 type AdminVoucher = {
   id: string;
   code: string;
+  voucherType?: 'new_user' | 'promo' | 'loyalty_points';
   discountType: 'fixed' | 'percentage';
   discountValue: string;
   minPurchase: string;
   maxDiscount: string | null;
   quota: number;
   quotaUsed: number;
+  dailyLimit?: number | null;
   pointsRequired: number;
   isPublic: boolean;
   isActive: boolean;
@@ -344,7 +346,12 @@ export default function OldSchoolPage() {
             <div className="p-4 rounded-xl bg-surface border border-primary/40 space-y-3">
               <h3 className="text-xs font-cyber font-bold text-primary uppercase">Buat Voucher Baru</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <input id="v-code" placeholder="Kode (e.g. PROMO50)" className="bg-black/40 border border-surface-border rounded p-2 text-white uppercase font-mono" />
+                <input id="v-code" placeholder="Kode (e.g. NEWBIE50 / PROMO10 / LOYAL500)" className="bg-black/40 border border-surface-border rounded p-2 text-white uppercase font-mono" />
+                <select id="v-voucher-type" className="bg-black/40 border border-surface-border rounded p-2 text-white font-semibold">
+                  <option value="promo">Promo Umum (Semua User)</option>
+                  <option value="new_user">New User Only (Ada Limit Harian)</option>
+                  <option value="loyalty_points">Loyalty Points (Tukar Point)</option>
+                </select>
                 <select id="v-type" className="bg-black/40 border border-surface-border rounded p-2 text-white">
                   <option value="fixed">Fixed (Nominal Rp)</option>
                   <option value="percentage">Percentage (%)</option>
@@ -352,18 +359,21 @@ export default function OldSchoolPage() {
                 <input id="v-value" type="number" placeholder="Nilai Diskon (e.g. 10000 atau 10)" className="bg-black/40 border border-surface-border rounded p-2 text-white" />
                 <input id="v-min" type="number" placeholder="Min Transaksi (e.g. 50000)" className="bg-black/40 border border-surface-border rounded p-2 text-white" />
                 <input id="v-max" type="number" placeholder="Max Diskon (opsional)" className="bg-black/40 border border-surface-border rounded p-2 text-white" />
-                <input id="v-quota" type="number" placeholder="Quota (e.g. 100)" defaultValue={100} className="bg-black/40 border border-surface-border rounded p-2 text-white" />
-                <input id="v-points" type="number" placeholder="Points Required (e.g. 0)" defaultValue={0} className="bg-black/40 border border-surface-border rounded p-2 text-white" />
+                <input id="v-quota" type="number" placeholder="Quota Total (e.g. 100)" defaultValue={100} className="bg-black/40 border border-surface-border rounded p-2 text-white" />
+                <input id="v-daily-limit" type="number" placeholder="Limit Harian (khusus user baru)" className="bg-black/40 border border-surface-border rounded p-2 text-white" />
+                <input id="v-points" type="number" placeholder="Points Required (khusus tukar poin)" defaultValue={0} className="bg-black/40 border border-surface-border rounded p-2 text-white" />
                 <input id="v-expires" type="datetime-local" className="bg-black/40 border border-surface-border rounded p-2 text-white" />
               </div>
               <button
                 onClick={async () => {
                   const code = (document.getElementById('v-code') as HTMLInputElement)?.value;
+                  const voucherType = (document.getElementById('v-voucher-type') as HTMLSelectElement)?.value || 'promo';
                   const discountType = (document.getElementById('v-type') as HTMLSelectElement)?.value;
                   const discountValue = (document.getElementById('v-value') as HTMLInputElement)?.value;
                   const minPurchase = (document.getElementById('v-min') as HTMLInputElement)?.value || '0';
                   const maxDiscount = (document.getElementById('v-max') as HTMLInputElement)?.value || null;
                   const quota = (document.getElementById('v-quota') as HTMLInputElement)?.value || '100';
+                  const dailyLimit = (document.getElementById('v-daily-limit') as HTMLInputElement)?.value || null;
                   const pointsRequired = (document.getElementById('v-points') as HTMLInputElement)?.value || '0';
                   const expiresAt = (document.getElementById('v-expires') as HTMLInputElement)?.value;
 
@@ -372,13 +382,20 @@ export default function OldSchoolPage() {
                     return;
                   }
 
+                  if (voucherType === 'loyalty_points' && Number(pointsRequired) <= 0) {
+                    setActionMessage('Voucher Loyalty Points membutuhkan Points Required > 0.');
+                    return;
+                  }
+
                   await adminAction('/api/v1/old-school/vouchers', 'POST', {
                     code: code.toUpperCase(),
+                    voucherType,
                     discountType,
                     discountValue,
                     minPurchase,
                     maxDiscount,
                     quota: Number(quota),
+                    dailyLimit: dailyLimit ? Number(dailyLimit) : null,
                     pointsRequired: Number(pointsRequired),
                     expiresAt: new Date(expiresAt).toISOString(),
                     isActive: true,
@@ -397,7 +414,7 @@ export default function OldSchoolPage() {
           {editingVoucher && (
             <div className="p-4 rounded-xl bg-surface border border-secondary/40 space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-cyber font-bold text-secondary uppercase">Setting Voucher: {editingVoucher.code}</h3>
+                <h3 className="text-xs font-cyber font-bold text-secondary uppercase">Setting Voucher: {editingVoucher.code} ({editingVoucher.voucherType || 'promo'})</h3>
                 <button onClick={() => setEditingVoucher(null)} className="text-xs text-slate-400 hover:text-white">Batal</button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
@@ -410,6 +427,10 @@ export default function OldSchoolPage() {
                   <input id="ve-quota" type="number" defaultValue={editingVoucher.quota} className="w-full bg-black/40 border border-surface-border rounded p-2 text-white" />
                 </div>
                 <div>
+                  <label className="text-[10px] text-slate-400">Limit Harian (opsional)</label>
+                  <input id="ve-daily-limit" type="number" defaultValue={editingVoucher.dailyLimit ?? ''} className="w-full bg-black/40 border border-surface-border rounded p-2 text-white" />
+                </div>
+                <div>
                   <label className="text-[10px] text-slate-400">Min Transaksi</label>
                   <input id="ve-min" type="number" defaultValue={editingVoucher.minPurchase} className="w-full bg-black/40 border border-surface-border rounded p-2 text-white" />
                 </div>
@@ -417,20 +438,28 @@ export default function OldSchoolPage() {
                   <label className="text-[10px] text-slate-400">Max Diskon</label>
                   <input id="ve-max" type="number" defaultValue={editingVoucher.maxDiscount ?? ''} className="w-full bg-black/40 border border-surface-border rounded p-2 text-white" />
                 </div>
+                <div>
+                  <label className="text-[10px] text-slate-400">Points Required</label>
+                  <input id="ve-points" type="number" defaultValue={editingVoucher.pointsRequired ?? 0} className="w-full bg-black/40 border border-surface-border rounded p-2 text-white" />
+                </div>
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={async () => {
                     const discountValue = (document.getElementById('ve-value') as HTMLInputElement)?.value;
                     const quota = (document.getElementById('ve-quota') as HTMLInputElement)?.value;
+                    const dailyLimit = (document.getElementById('ve-daily-limit') as HTMLInputElement)?.value || null;
                     const minPurchase = (document.getElementById('ve-min') as HTMLInputElement)?.value;
                     const maxDiscount = (document.getElementById('ve-max') as HTMLInputElement)?.value || null;
+                    const pointsRequired = (document.getElementById('ve-points') as HTMLInputElement)?.value || '0';
 
                     await adminAction(`/api/v1/old-school/vouchers/${editingVoucher.id}`, 'PATCH', {
                       discountValue,
                       quota: Number(quota),
+                      dailyLimit: dailyLimit ? Number(dailyLimit) : null,
                       minPurchase,
                       maxDiscount,
+                      pointsRequired: Number(pointsRequired),
                     });
                     setEditingVoucher(null);
                   }}
@@ -457,17 +486,29 @@ export default function OldSchoolPage() {
           <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
             {vouchers.map(v => {
               const isExpired = new Date(v.expiresAt) <= new Date();
+              const typeBadge =
+                v.voucherType === 'new_user'
+                  ? 'bg-blue-500/20 text-blue-400 border-blue-500/40'
+                  : v.voucherType === 'loyalty_points'
+                  ? 'bg-purple-500/20 text-purple-400 border-purple-500/40'
+                  : 'bg-slate-700/50 text-slate-300 border-slate-600';
+
               return (
                 <div key={v.id} className="p-2.5 rounded-lg bg-surface border border-surface-border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                   <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono font-bold text-white">{v.code}</span>
+                      <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold border ${typeBadge}`}>
+                        {v.voucherType === 'new_user' ? 'NEW USER' : v.voucherType === 'loyalty_points' ? 'LOYALTY PTS' : 'PROMO'}
+                      </span>
                       <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold ${v.isActive && !isExpired ? 'bg-accent-green/20 text-accent-green border border-accent-green/40' : 'bg-red-500/20 text-red-400 border border-red-500/40'}`}>
                         {!v.isActive ? 'KILLED' : isExpired ? 'EXPIRED' : 'ACTIVE'}
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-400">
                       Diskon: {v.discountValue} {v.discountType === 'percentage' ? '%' : 'Rp'} • Quota: {v.quotaUsed}/{v.quota}
+                      {v.dailyLimit ? ` • Limit/Hari: ${v.dailyLimit}` : ''}
+                      {v.pointsRequired > 0 ? ` • Poin: ${v.pointsRequired}` : ''}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 self-end sm:self-center">

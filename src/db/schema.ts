@@ -29,6 +29,7 @@ export const transactionStatusEnum = pgEnum('transaction_status', [
 ]);
 
 export const discountTypeEnum = pgEnum('discount_type', ['percentage', 'fixed']);
+export const voucherTypeEnum = pgEnum('voucher_type', ['new_user', 'promo', 'loyalty_points']);
 
 // ----------------------------------------------------
 // 1. USERS & GAMIFICATION
@@ -163,13 +164,15 @@ export const vouchers = pgTable(
   {
     id: uuid('id').defaultRandom().primaryKey(),
     code: text('code').notNull().unique(), // e.g. 'WETRIGLOW10'
+    voucherType: voucherTypeEnum('voucher_type').default('promo').notNull(), // 'new_user' | 'promo' | 'loyalty_points'
     discountType: discountTypeEnum('discount_type').notNull(), // 'percentage' | 'fixed'
     discountValue: numeric('discount_value', { precision: 12, scale: 2 }).notNull(),
     minPurchase: numeric('min_purchase', { precision: 12, scale: 2 }).default('0').notNull(),
     maxDiscount: numeric('max_discount', { precision: 12, scale: 2 }), // optional cap
     quota: integer('quota').default(100).notNull(),
     quotaUsed: integer('quota_used').default(0).notNull(),
-    pointsRequired: integer('points_required').default(0).notNull(), // 0 jika voucher publik
+    dailyLimit: integer('daily_limit'), // limit pemakaian per hari untuk voucher new_user / promo
+    pointsRequired: integer('points_required').default(0).notNull(), // poin yang ditukarkan (khusus loyalty_points)
     isPublic: boolean('is_public').default(true).notNull(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     isActive: boolean('is_active').default(true).notNull(),
@@ -177,6 +180,7 @@ export const vouchers = pgTable(
   },
   (table) => [
     index('vouchers_code_idx').on(table.code),
+    index('vouchers_type_idx').on(table.voucherType),
     index('vouchers_active_idx').on(table.isActive),
   ]
 );

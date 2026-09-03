@@ -2,7 +2,23 @@ import { db } from '../../db';
 import { auditTrails, vouchers } from '../../db/schema';
 import { desc, eq, ilike } from 'drizzle-orm';
 
-const columns = { id: vouchers.id, code: vouchers.code, discountType: vouchers.discountType, discountValue: vouchers.discountValue, minPurchase: vouchers.minPurchase, maxDiscount: vouchers.maxDiscount, quota: vouchers.quota, quotaUsed: vouchers.quotaUsed, pointsRequired: vouchers.pointsRequired, isPublic: vouchers.isPublic, expiresAt: vouchers.expiresAt, isActive: vouchers.isActive, createdAt: vouchers.createdAt };
+const columns = {
+  id: vouchers.id,
+  code: vouchers.code,
+  voucherType: vouchers.voucherType,
+  discountType: vouchers.discountType,
+  discountValue: vouchers.discountValue,
+  minPurchase: vouchers.minPurchase,
+  maxDiscount: vouchers.maxDiscount,
+  quota: vouchers.quota,
+  quotaUsed: vouchers.quotaUsed,
+  dailyLimit: vouchers.dailyLimit,
+  pointsRequired: vouchers.pointsRequired,
+  isPublic: vouchers.isPublic,
+  expiresAt: vouchers.expiresAt,
+  isActive: vouchers.isActive,
+  createdAt: vouchers.createdAt,
+};
 
 export async function listAdminVouchers(search?: string) {
   return db.select(columns).from(vouchers).where(search ? ilike(vouchers.code, `%${search}%`) : undefined).orderBy(desc(vouchers.createdAt)).limit(200);
