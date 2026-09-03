@@ -38,6 +38,19 @@ mock.module('../src/lib/firebase-admin', () => ({
   },
 }));
 
+mock.module('../src/db', () => ({
+  db: {
+    query: {
+      users: {
+        findFirst: async () => ({ role: 'user' }),
+      },
+      systemConfigs: {
+        findFirst: async () => ({ key: 'ACTIVE_SUPPLIER', value: 'digiflazz', isActive: true }),
+      },
+    },
+  },
+}));
+
 import { app } from '../server/index';
 
 function parseJson(res) {

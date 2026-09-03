@@ -1,4 +1,7 @@
 import { Elysia, InternalServerError } from 'elysia';
+import { eq } from 'drizzle-orm';
+import { db } from '../db';
+import { users } from '../db/schema';
 import { adminAuth } from '../lib/firebase-admin';
 
 class UnauthorizedError extends Error {
@@ -27,7 +30,15 @@ async function resolveToken(req: Request) {
   }
 }
 
-/** Authenticate plugin — injects user + role into scoped context. */
+async function resolveDbRole(uid: string): Promise<'admin' | 'user'> {
+  const dbUser = await db.query.users.findFirst({
+    where: eq(users.id, uid),
+    columns: { role: true },
+  });
+  return dbUser?.role === 'admin' ? 'admin' : 'user';
+}
+
+/** Authenticate plugin — injects Firebase identity + DB-backed role into scoped context. */
 export const authenticate = new Elysia({ name: 'authenticate' })
   .error({ UnauthorizedError, ForbiddenError })
   .onError(({ error, set }) => {
@@ -36,10 +47,11 @@ export const authenticate = new Elysia({ name: 'authenticate' })
   })
   .derive({ as: 'scoped' }, async ({ request }) => {
     const decoded = await resolveToken(request);
-    return { user: decoded, role: ((decoded as any).role ?? 'user') as string };
+    const role = await resolveDbRole(decoded.uid);
+    return { user: { ...decoded, role }, role };
   });
 
-/** requireRole plugin — throws 403 if caller role does not match. */
+/** requireRole plugin — throws 403 if caller role from Supabase users.role does not match. */
 export function requireRole(requiredRole: 'admin' | 'user') {
   return new Elysia({ name: `requireRole:${requiredRole}` })
     .error({ UnauthorizedError, ForbiddenError })
@@ -49,10 +61,10 @@ export function requireRole(requiredRole: 'admin' | 'user') {
     })
     .derive({ as: 'scoped' }, async ({ request }) => {
       const decoded = await resolveToken(request);
-      const role = ((decoded as any).role ?? 'user') as string;
+      const role = await resolveDbRole(decoded.uid);
       if (requiredRole === 'admin' && role !== 'admin') {
         throw new ForbiddenError('Forbidden: admin role required');
       }
-      return { user: decoded, role };
+      return { user: { ...decoded, role }, role };
     });
 }

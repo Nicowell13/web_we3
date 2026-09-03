@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia';
-import { authenticate } from '../../middleware/auth';
+import { requireRole } from '../../middleware/auth';
 import { getAdminMetrics, getRecentAuditLogs, getSystemConfigs, updateSystemConfig } from './admin.service';
 
 /**
@@ -10,24 +10,20 @@ import { getAdminMetrics, getRecentAuditLogs, getSystemConfigs, updateSystemConf
  * POST /api/v1/admin/configs – update a config (key/value).
  */
 export const adminRoutes = new Elysia({ prefix: '/api/v1' })
-  .use(authenticate)
-  .get('/admin/metrics', async ({ user }) => {
-    if (user.role !== 'admin') return { ok: false, message: 'Forbidden' };
+  .use(requireRole('admin'))
+  .get('/admin/metrics', async () => {
     const data = await getAdminMetrics();
     return { ok: true, ...data };
   })
-  .get('/admin/audit-logs', async ({ user }) => {
-    if (user.role !== 'admin') return { ok: false, message: 'Forbidden' };
+  .get('/admin/audit-logs', async () => {
     const logs = await getRecentAuditLogs();
     return { ok: true, logs };
   })
-  .get('/admin/configs', async ({ user }) => {
-    if (user.role !== 'admin') return { ok: false, message: 'Forbidden' };
+  .get('/admin/configs', async () => {
     const cfg = await getSystemConfigs();
     return { ok: true, configs: cfg };
   })
-  .post('/admin/configs', async ({ user, body }) => {
-    if (user.role !== 'admin') return { ok: false, message: 'Forbidden' };
+  .post('/admin/configs', async ({ body }) => {
     const { key, value } = body as { key: string; value: string };
     await updateSystemConfig(key, value);
     return { ok: true };

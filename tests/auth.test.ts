@@ -10,12 +10,33 @@ mock.module('../src/lib/firebase-admin', () => ({
       if (token === 'valid-user-token') {
         return { uid: 'user-uid-1', email: 'user@wetri.com', role: 'user', name: 'User Test', picture: null };
       }
+      if (token === 'forged-admin-claim-token') {
+        return { uid: 'user-uid-1', email: 'user@wetri.com', role: 'admin', name: 'User Test', picture: null };
+      }
       throw new Error('Invalid token');
     },
   },
 }));
 
-// Import server AFTER mock so it picks up mocked module
+mock.module('../src/db', () => ({
+  db: {
+    query: {
+      users: {
+        findFirst: async ({ where }: any) => {
+          const text = String(where);
+          if (text.includes('admin-uid-1')) return { role: 'admin' };
+          if (text.includes('user-uid-1')) return { role: 'user' };
+          return null;
+        },
+      },
+      systemConfigs: {
+        findFirst: async () => ({ key: 'ACTIVE_SUPPLIER', value: 'digiflazz', isActive: true }),
+      },
+    },
+  },
+}));
+
+// Import server AFTER mocks so it picks up mocked modules
 const { app } = await import('../server/index');
 
 describe('[FEAT-02] Auth Middleware & RBAC', () => {
@@ -47,6 +68,15 @@ describe('[FEAT-02] Auth Middleware & RBAC', () => {
     const res = await app.handle(
       new Request('http://localhost:3001/api/v1/supplier/balance', {
         headers: { Authorization: 'Bearer valid-user-token' },
+      })
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it('GET /api/v1/supplier/balance ignores forged Firebase admin claim and uses DB role', async () => {
+    const res = await app.handle(
+      new Request('http://localhost:3001/api/v1/supplier/balance', {
+        headers: { Authorization: 'Bearer forged-admin-claim-token' },
       })
     );
     expect(res.status).toBe(403);
