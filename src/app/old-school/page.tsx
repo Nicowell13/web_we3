@@ -306,9 +306,25 @@ export default function OldSchoolPage() {
       </div>}
 
       <div className="glass-panel p-6 rounded-2xl border border-surface-border space-y-4">
-        <h2 className="text-base font-cyber font-bold text-white">Products & Digiflazz</h2>
-        <button onClick={() => adminAction('/api/v1/old-school/suppliers/digiflazz/sync-products', 'POST')} className="px-3 py-2 rounded bg-primary/20 border border-primary/40 text-primary text-xs">Sync Digiflazz</button>
-        <div className="space-y-2 max-h-80 overflow-y-auto">{products.map(p => <div key={p.id} className="flex items-center justify-between gap-3 p-2 rounded bg-surface text-xs"><span>{p.gameId} / {p.denomination}</span><span>Rp {Number(p.sellPrice).toLocaleString('id-ID')}</span><button onClick={() => adminAction(`/api/v1/old-school/products/${p.id}`, 'PATCH', { isActive: !p.isActive })} className="text-primary">{p.isActive ? 'Disable' : 'Enable'}</button></div>)}</div>
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-cyber font-bold text-white">Products & Digiflazz</h2>
+          <button onClick={() => adminAction('/api/v1/old-school/suppliers/digiflazz/sync-products', 'POST')} className="px-3 py-1.5 rounded bg-primary/20 border border-primary/40 text-primary text-xs font-semibold hover:bg-primary hover:text-black">
+            Sync Digiflazz
+          </button>
+        </div>
+        <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+          {products.map(p => (
+            <div key={p.id} className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-surface border border-surface-border text-xs">
+              <div className="space-y-0.5">
+                <span className="font-mono text-white font-semibold">{p.gameId} / {p.denomination}</span>
+                <p className="text-[10px] text-slate-400">Modal: Rp {Number(p.basePrice).toLocaleString('id-ID')} • Jual: Rp {Number(p.sellPrice).toLocaleString('id-ID')}</p>
+              </div>
+              <button onClick={() => adminAction(`/api/v1/old-school/products/${p.id}`, 'PATCH', { isActive: !p.isActive })} className="text-primary hover:underline">
+                {p.isActive ? 'Disable' : 'Enable'}
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -438,7 +454,7 @@ export default function OldSchoolPage() {
           )}
 
           {/* List Vouchers */}
-          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+          <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
             {vouchers.map(v => {
               const isExpired = new Date(v.expiresAt) <= new Date();
               return (
@@ -483,8 +499,31 @@ export default function OldSchoolPage() {
           </div>
         </div>
         <div className="glass-panel p-6 rounded-2xl border border-surface-border space-y-4">
-          <h2 className="text-base font-cyber font-bold text-white">Users</h2>
-          {users.map(u => <div key={u.id} className="flex items-center justify-between p-2 rounded bg-surface text-xs"><span>{u.name || u.email} · {u.status}</span><button onClick={() => adminAction(`/api/v1/old-school/users/${u.id}/status`, 'POST', { status: u.status === 'banned' ? 'active' : 'banned', reason: 'Admin action' })} className="text-primary">{u.status === 'banned' ? 'Unban' : 'Ban'}</button></div>)}
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-cyber font-bold text-white">Users & Fraud Control</h2>
+            <span className="text-[11px] text-slate-400 font-mono">Total: {users.length}</span>
+          </div>
+          <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+            {users.map(u => (
+              <div key={u.id} className="p-2.5 rounded-lg bg-surface border border-surface-border flex items-center justify-between gap-2 text-xs">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-white">{u.name || u.email}</span>
+                    <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold ${u.status === 'banned' ? 'bg-red-500/20 text-red-400 border border-red-500/40' : u.status === 'suspended' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40' : 'bg-accent-green/20 text-accent-green border border-accent-green/40'}`}>
+                      {u.status.toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-mono">{u.email} • Role: {u.role}</p>
+                </div>
+                <button
+                  onClick={() => adminAction(`/api/v1/old-school/users/${u.id}/status`, 'POST', { status: u.status === 'banned' ? 'active' : 'banned', reason: u.status === 'banned' ? undefined : 'Fraud action from operator' })}
+                  className={`px-2 py-1 rounded text-[11px] font-semibold ${u.status === 'banned' ? 'bg-accent-green/20 text-accent-green hover:bg-accent-green hover:text-black' : 'bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white'}`}
+                >
+                  {u.status === 'banned' ? 'Unban' : 'Ban User'}
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* System Configs */}
