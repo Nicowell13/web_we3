@@ -30,6 +30,13 @@ async function resolveToken(req: Request) {
   }
 }
 
+async function resolveDbUser(uid: string) {
+  return db.query.users.findFirst({
+    where: eq(users.id, uid),
+    columns: { role: true, status: true },
+  });
+}
+
 async function resolveDbRole(uid: string): Promise<'admin' | 'user'> {
   const dbUser = await db.query.users.findFirst({
     where: eq(users.id, uid),
@@ -47,8 +54,11 @@ export const authenticate = new Elysia({ name: 'authenticate' })
   })
   .derive({ as: 'scoped' }, async ({ request }) => {
     const decoded = await resolveToken(request);
-    const role = await resolveDbRole(decoded.uid);
-    return { user: { ...decoded, role }, role };
+    const dbUser = await resolveDbUser(decoded.uid);
+    const role = dbUser?.role === 'admin' ? 'admin' : 'user';
+    if (dbUser?.status === 'banned') throw new ForbiddenError('Account banned');
+    if (dbUser?.status === 'suspended') throw new ForbiddenError('Account suspended');
+    return { user: { ...decoded, role, status: dbUser?.status ?? 'active' }, role };
   });
 
 /** requireRole plugin — throws 403 if caller role from Supabase users.role does not match. */
@@ -61,10 +71,14 @@ export function requireRole(requiredRole: 'admin' | 'user') {
     })
     .derive({ as: 'scoped' }, async ({ request }) => {
       const decoded = await resolveToken(request);
-      const role = await resolveDbRole(decoded.uid);
+      const dbUser = await resolveDbUser(decoded.uid);
+      const role = dbUser?.role === 'admin' ? 'admin' : 'user';
+      if (dbUser?.status === 'banned' || dbUser?.status === 'suspended') {
+        throw new ForbiddenError(`Account ${dbUser.status}`);
+      }
       if (requiredRole === 'admin' && role !== 'admin') {
         throw new ForbiddenError('Forbidden: admin role required');
       }
-      return { user: { ...decoded, role }, role };
+      return { user: { ...decoded, role, status: dbUser?.status ?? 'active' }, role };
     });
 }

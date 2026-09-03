@@ -1,6 +1,9 @@
 import { Elysia } from 'elysia';
 import { requireRole } from '../../middleware/auth';
 import { getAdminMetrics, getRecentAuditLogs, getSystemConfigs, updateSystemConfig } from './admin.service';
+import { db } from '../../db';
+import { users } from '../../db/schema';
+import { desc, eq, ilike } from 'drizzle-orm';
 
 /**
  * Old-school admin panel API – admin‑only protected.
@@ -29,5 +32,34 @@ export const adminRoutes = new Elysia({ prefix: '/api/v1/old-school' })
     const { key, value } = body as { key: string; value: string };
     await updateSystemConfig(key, value);
     return { ok: true };
+  })
+  .get('/users', async ({ query }) => {
+    const search = (query as { search?: string }).search;
+    const records = await db.query.users.findMany({
+      where: search ? ilike(users.email, `%${search}%`) : undefined,
+      columns: { id: true, email: true, name: true, role: true, status: true, bannedAt: true, bannedReason: true, createdAt: true, updatedAt: true },
+      orderBy: desc(users.createdAt),
+      limit: 100,
+    });
+    return { ok: true, users: records };
+  })
+  .post('/users/:id/status', async ({ params, body, set }) => {
+    const payload = body as { status?: 'active' | 'suspended' | 'banned'; reason?: string };
+    if (!['active', 'suspended', 'banned'].includes(payload.status ?? '')) {
+      set.status = 400;
+      return { ok: false, message: 'Invalid user status' };
+    }
+    if (payload.status === 'banned' && !payload.reason?.trim()) {
+      set.status = 400;
+      return { ok: false, message: 'Ban reason is required' };
+    }
+    const [updated] = await db.update(users).set({
+      status: payload.status,
+      bannedAt: payload.status === 'banned' ? new Date() : null,
+      bannedReason: payload.status === 'banned' ? payload.reason!.trim() : null,
+      updatedAt: new Date(),
+    }).where(eq(users.id, params.id)).returning({ id: users.id, status: users.status, bannedAt: users.bannedAt, bannedReason: users.bannedReason });
+    if (!updated) { set.status = 404; return { ok: false, message: 'User not found' }; }
+    return { ok: true, user: updated };
   });
 

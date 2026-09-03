@@ -16,6 +16,7 @@ import { relations } from 'drizzle-orm';
 // ENUMS
 // ----------------------------------------------------
 export const userRoleEnum = pgEnum('user_role', ['user', 'admin']);
+export const userStatusEnum = pgEnum('user_status', ['active', 'suspended', 'banned']);
 
 export const transactionStatusEnum = pgEnum('transaction_status', [
   'PENDING',
@@ -39,6 +40,9 @@ export const users = pgTable(
     name: text('name'),
     avatarUrl: text('avatar_url'),
     role: userRoleEnum('role').default('user').notNull(),
+    status: userStatusEnum('status').default('active').notNull(),
+    bannedAt: timestamp('banned_at', { withTimezone: true }),
+    bannedReason: text('banned_reason'),
     points: integer('points').default(0).notNull(),
     streak: integer('streak').default(0).notNull(),
     lastCheckinAt: timestamp('last_checkin_at', { withTimezone: true }),
