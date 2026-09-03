@@ -20,7 +20,20 @@ type AuditLog = {
 
 type SystemConfig = { id: string; key: string; value: string; description: string | null; isActive: boolean };
 type AdminProduct = { id: string; denomination: string; basePrice: string; sellPrice: string; isActive: boolean; supplierStatus: string; gameId: string };
-type AdminVoucher = { id: string; code: string; discountType: string; discountValue: string; quota: number; quotaUsed: number; isActive: boolean; expiresAt: string };
+type AdminVoucher = {
+  id: string;
+  code: string;
+  discountType: 'fixed' | 'percentage';
+  discountValue: string;
+  minPurchase: string;
+  maxDiscount: string | null;
+  quota: number;
+  quotaUsed: number;
+  pointsRequired: number;
+  isPublic: boolean;
+  isActive: boolean;
+  expiresAt: string;
+};
 type AdminUser = { id: string; email: string; name: string | null; status: string; role: string; bannedReason: string | null };
 type HomeBanner = {
   title: string;
@@ -46,6 +59,8 @@ export default function OldSchoolPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [actionMessage, setActionMessage] = useState('');
   const [banner, setBanner] = useState<HomeBanner | null>(null);
+  const [editingVoucher, setEditingVoucher] = useState<AdminVoucher | null>(null);
+  const [showAddVoucher, setShowAddVoucher] = useState(false);
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -298,8 +313,174 @@ export default function OldSchoolPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="glass-panel p-6 rounded-2xl border border-surface-border space-y-4">
-          <h2 className="text-base font-cyber font-bold text-white">Vouchers</h2>
-          {vouchers.map(v => <div key={v.id} className="flex items-center justify-between p-2 rounded bg-surface text-xs"><span>{v.code} · {v.discountValue} {v.discountType}</span><button onClick={() => adminAction(`/api/v1/old-school/vouchers/${v.id}`, 'PATCH', { isActive: !v.isActive })} className="text-primary">{v.isActive ? 'Disable' : 'Enable'}</button></div>)}
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-cyber font-bold text-white">Vouchers Management</h2>
+            <button
+              onClick={() => { setShowAddVoucher(!showAddVoucher); setEditingVoucher(null); }}
+              className="px-3 py-1.5 rounded bg-primary/20 border border-primary/40 text-primary hover:bg-primary hover:text-black text-xs font-semibold"
+            >
+              {showAddVoucher ? 'Tutup Form' : '+ Add Voucher'}
+            </button>
+          </div>
+
+          {/* Form Add Voucher */}
+          {showAddVoucher && (
+            <div className="p-4 rounded-xl bg-surface border border-primary/40 space-y-3">
+              <h3 className="text-xs font-cyber font-bold text-primary uppercase">Buat Voucher Baru</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <input id="v-code" placeholder="Kode (e.g. PROMO50)" className="bg-black/40 border border-surface-border rounded p-2 text-white uppercase font-mono" />
+                <select id="v-type" className="bg-black/40 border border-surface-border rounded p-2 text-white">
+                  <option value="fixed">Fixed (Nominal Rp)</option>
+                  <option value="percentage">Percentage (%)</option>
+                </select>
+                <input id="v-value" type="number" placeholder="Nilai Diskon (e.g. 10000 atau 10)" className="bg-black/40 border border-surface-border rounded p-2 text-white" />
+                <input id="v-min" type="number" placeholder="Min Transaksi (e.g. 50000)" className="bg-black/40 border border-surface-border rounded p-2 text-white" />
+                <input id="v-max" type="number" placeholder="Max Diskon (opsional)" className="bg-black/40 border border-surface-border rounded p-2 text-white" />
+                <input id="v-quota" type="number" placeholder="Quota (e.g. 100)" defaultValue={100} className="bg-black/40 border border-surface-border rounded p-2 text-white" />
+                <input id="v-points" type="number" placeholder="Points Required (e.g. 0)" defaultValue={0} className="bg-black/40 border border-surface-border rounded p-2 text-white" />
+                <input id="v-expires" type="datetime-local" className="bg-black/40 border border-surface-border rounded p-2 text-white" />
+              </div>
+              <button
+                onClick={async () => {
+                  const code = (document.getElementById('v-code') as HTMLInputElement)?.value;
+                  const discountType = (document.getElementById('v-type') as HTMLSelectElement)?.value;
+                  const discountValue = (document.getElementById('v-value') as HTMLInputElement)?.value;
+                  const minPurchase = (document.getElementById('v-min') as HTMLInputElement)?.value || '0';
+                  const maxDiscount = (document.getElementById('v-max') as HTMLInputElement)?.value || null;
+                  const quota = (document.getElementById('v-quota') as HTMLInputElement)?.value || '100';
+                  const pointsRequired = (document.getElementById('v-points') as HTMLInputElement)?.value || '0';
+                  const expiresAt = (document.getElementById('v-expires') as HTMLInputElement)?.value;
+
+                  if (!code || !discountValue || !expiresAt) {
+                    setActionMessage('Kode, Nilai Diskon, dan Expired Date wajib diisi.');
+                    return;
+                  }
+
+                  await adminAction('/api/v1/old-school/vouchers', 'POST', {
+                    code: code.toUpperCase(),
+                    discountType,
+                    discountValue,
+                    minPurchase,
+                    maxDiscount,
+                    quota: Number(quota),
+                    pointsRequired: Number(pointsRequired),
+                    expiresAt: new Date(expiresAt).toISOString(),
+                    isActive: true,
+                    isPublic: true,
+                  });
+                  setShowAddVoucher(false);
+                }}
+                className="w-full py-2 rounded bg-primary text-black font-cyber font-bold text-xs hover:bg-white transition-colors"
+              >
+                Simpan & Rilis Voucher
+              </button>
+            </div>
+          )}
+
+          {/* Form Edit / Settings Voucher */}
+          {editingVoucher && (
+            <div className="p-4 rounded-xl bg-surface border border-secondary/40 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-cyber font-bold text-secondary uppercase">Setting Voucher: {editingVoucher.code}</h3>
+                <button onClick={() => setEditingVoucher(null)} className="text-xs text-slate-400 hover:text-white">Batal</button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div>
+                  <label className="text-[10px] text-slate-400">Nilai Diskon</label>
+                  <input id="ve-value" type="number" defaultValue={editingVoucher.discountValue} className="w-full bg-black/40 border border-surface-border rounded p-2 text-white" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-400">Quota Total</label>
+                  <input id="ve-quota" type="number" defaultValue={editingVoucher.quota} className="w-full bg-black/40 border border-surface-border rounded p-2 text-white" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-400">Min Transaksi</label>
+                  <input id="ve-min" type="number" defaultValue={editingVoucher.minPurchase} className="w-full bg-black/40 border border-surface-border rounded p-2 text-white" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-400">Max Diskon</label>
+                  <input id="ve-max" type="number" defaultValue={editingVoucher.maxDiscount ?? ''} className="w-full bg-black/40 border border-surface-border rounded p-2 text-white" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    const discountValue = (document.getElementById('ve-value') as HTMLInputElement)?.value;
+                    const quota = (document.getElementById('ve-quota') as HTMLInputElement)?.value;
+                    const minPurchase = (document.getElementById('ve-min') as HTMLInputElement)?.value;
+                    const maxDiscount = (document.getElementById('ve-max') as HTMLInputElement)?.value || null;
+
+                    await adminAction(`/api/v1/old-school/vouchers/${editingVoucher.id}`, 'PATCH', {
+                      discountValue,
+                      quota: Number(quota),
+                      minPurchase,
+                      maxDiscount,
+                    });
+                    setEditingVoucher(null);
+                  }}
+                  className="flex-1 py-1.5 rounded bg-secondary/20 border border-secondary/40 text-secondary text-xs font-semibold hover:bg-secondary hover:text-black"
+                >
+                  Simpan Setting
+                </button>
+                <button
+                  onClick={async () => {
+                    if (confirm(`Kill voucher ${editingVoucher.code} sekarang?`)) {
+                      await adminAction(`/api/v1/old-school/vouchers/${editingVoucher.id}`, 'PATCH', { isActive: false });
+                      setEditingVoucher(null);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500 hover:text-white text-xs font-semibold"
+                >
+                  Kill Voucher
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* List Vouchers */}
+          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+            {vouchers.map(v => {
+              const isExpired = new Date(v.expiresAt) <= new Date();
+              return (
+                <div key={v.id} className="p-2.5 rounded-lg bg-surface border border-surface-border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-white">{v.code}</span>
+                      <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold ${v.isActive && !isExpired ? 'bg-accent-green/20 text-accent-green border border-accent-green/40' : 'bg-red-500/20 text-red-400 border border-red-500/40'}`}>
+                        {!v.isActive ? 'KILLED' : isExpired ? 'EXPIRED' : 'ACTIVE'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      Diskon: {v.discountValue} {v.discountType === 'percentage' ? '%' : 'Rp'} • Quota: {v.quotaUsed}/{v.quota}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 self-end sm:self-center">
+                    <button
+                      onClick={() => { setEditingVoucher(v); setShowAddVoucher(false); }}
+                      className="px-2 py-1 rounded bg-slate-800 text-slate-300 hover:text-white text-[11px]"
+                    >
+                      Setting
+                    </button>
+                    {v.isActive ? (
+                      <button
+                        onClick={() => adminAction(`/api/v1/old-school/vouchers/${v.id}`, 'PATCH', { isActive: false })}
+                        className="px-2 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white text-[11px]"
+                      >
+                        Kill
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => adminAction(`/api/v1/old-school/vouchers/${v.id}`, 'PATCH', { isActive: true })}
+                        className="px-2 py-1 rounded bg-accent-green/20 text-accent-green hover:bg-accent-green hover:text-black text-[11px]"
+                      >
+                        Activate
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
         <div className="glass-panel p-6 rounded-2xl border border-surface-border space-y-4">
           <h2 className="text-base font-cyber font-bold text-white">Users</h2>
