@@ -161,7 +161,7 @@ export default function OldSchoolPage() {
     const token = await user.getIdToken();
     const res = await fetch(`${apiBase}${path}`, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
     const result = await res.json().catch(() => ({}));
-    setActionMessage(res.ok ? (result.total === undefined ? 'Perubahan tersimpan.' : `Sync selesai: ${result.created} baru, ${result.updated} diperbarui, ${result.unchanged} tetap, ${result.failed} gagal dari ${result.total}.`) : (result.message || `Request gagal (${res.status}).`));
+    setActionMessage(res.ok ? (result.total === undefined ? 'Perubahan tersimpan.' : `Sync selesai: ${result.gamesCreated ?? 0} game, ${result.created} produk baru, ${result.updated} diperbarui, ${result.unchanged} tetap, ${result.failed} gagal dari ${result.total}.`) : (result.message || `Request gagal (${res.status}).`));
     if (res.ok) await verifyAndLoad();
     return res.ok;
   };

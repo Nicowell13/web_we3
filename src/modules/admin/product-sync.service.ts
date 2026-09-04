@@ -19,7 +19,7 @@ export function mapDigiflazzProduct(item: Record<string, unknown>) {
     denomination: String(item.product_name ?? item.desc ?? sku).trim(),
     costPrice: price,
     supplierStatus: String(item.status ?? 'available').trim() || 'available',
-    valid: Boolean(sku && gameKey && /^\\d+(\\.\\d{1,2})?$/.test(price) && Number(price) >= 0),
+    valid: Boolean(sku && gameKey && /^\d+(\.\d{1,2})?$/.test(price) && Number(price) >= 0),
   };
 }
 import { getActiveSupplier } from '../suppliers/supplierFactory';
@@ -31,13 +31,21 @@ export async function syncDigiflazzProducts() {
   if (!Array.isArray(incoming)) throw new Error('Digiflazz product response is invalid');
   const games = await db.query.gamesCatalog.findMany({ columns: { id: true, name: true } });
   const gameByKey = new Map(games.flatMap((game) => [[normalize(game.id), game], [normalize(game.name), game]]));
-  let created = 0, updated = 0, unchanged = 0, failed = 0;
+  let created = 0, updated = 0, unchanged = 0, failed = 0, gamesCreated = 0;
 
   for (const raw of incoming) {
     const item = mapDigiflazzProduct(raw as Record<string, unknown>);
-    const game = gameByKey.get(item.gameKey);
-    if (!item.valid || !game) { failed++; continue; }
+    if (!item.valid) { failed++; continue; }
+    let game = gameByKey.get(item.gameKey);
     try {
+      if (!game) {
+        const [createdGame] = await db.insert(gamesCatalog).values({ id: item.gameKey, name: item.brand!, publisher: 'Digiflazz', category: item.productType || 'Game', thumbnailUrl: '/logo.webp', isActive: true }).onConflictDoNothing().returning({ id: gamesCatalog.id, name: gamesCatalog.name });
+        game = createdGame ?? await db.query.gamesCatalog.findFirst({ where: eq(gamesCatalog.id, item.gameKey), columns: { id: true, name: true } });
+        if (!game) { failed++; continue; }
+        gameByKey.set(item.gameKey, game);
+        gameByKey.set(normalize(game.name), game);
+        if (createdGame) gamesCreated++;
+      }
       const existing = await db.query.products.findFirst({ where: and(eq(products.supplierCode, 'digiflazz'), eq(products.supplierProductCode, item.sku)) });
       const now = new Date();
       if (existing) {
@@ -52,5 +60,5 @@ export async function syncDigiflazzProducts() {
       }
     } catch { failed++; }
   }
-  return { created, updated, unchanged, failed, total: incoming.length };
+  return { created, updated, unchanged, failed, gamesCreated, total: incoming.length };
 }
