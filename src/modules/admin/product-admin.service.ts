@@ -2,6 +2,12 @@ import { db } from '../../db';
 import { auditTrails, products } from '../../db/schema';
 import { and, desc, eq, ilike, inArray } from 'drizzle-orm';
 
+export function calculatePriceFromMargin(basePrice: number, marginType: 'fixed' | 'percentage', marginValue: number) {
+  if (!Number.isFinite(basePrice) || basePrice < 0 || !Number.isFinite(marginValue) || marginValue < 0) throw new Error('Invalid pricing values');
+  if (marginType === 'percentage' && marginValue > 100) throw new Error('Percentage margin cannot exceed 100');
+  return Number((basePrice + (marginType === 'percentage' ? basePrice * marginValue / 100 : marginValue)).toFixed(2));
+}
+
 const columns = {
   id: products.id, gameId: products.gameId, sku: products.sku, denomination: products.denomination,
   basePrice: products.basePrice, sellPrice: products.sellPrice, supplierCode: products.supplierCode,

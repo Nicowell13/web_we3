@@ -2,10 +2,10 @@ import { Elysia } from 'elysia';
 import { requireRole } from '../../middleware/auth';
 import { getAdminMetrics, getRecentAuditLogs, getSystemConfigs, updateSystemConfig } from './admin.service';
 import { db } from '../../db';
-import { auditTrails, users } from '../../db/schema';
+import { auditTrails, products, users } from '../../db/schema';
 import { desc, eq, ilike } from 'drizzle-orm';
 import { syncDigiflazzProducts } from './product-sync.service';
-import { bulkUpdateProducts, listAdminProducts, updateAdminProduct } from './product-admin.service';
+import { bulkUpdateProducts, calculatePriceFromMargin, listAdminProducts, updateAdminProduct } from './product-admin.service';
 import { createAdminVoucher, listAdminVouchers, updateAdminVoucher } from './voucher-admin.service';
 
 /**
@@ -41,6 +41,11 @@ export const adminRoutes = new Elysia({ prefix: '/api/v1/old-school' })
     }
     if (patch.marginType === 'percentage' && Number(patch.marginValue ?? 0) > 100) {
       set.status = 400; return { ok: false, message: 'Percentage margin cannot exceed 100' };
+    }
+    if (patch.marginType && patch.marginValue !== undefined && patch.sellPrice === undefined) {
+      const current = await db.query.products.findFirst({ where: eq(products.id, params.id), columns: { basePrice: true } });
+      if (!current) { set.status = 404; return { ok: false, message: 'Product not found' }; }
+      patch.sellPrice = String(calculatePriceFromMargin(Number(current.basePrice), patch.marginType, Number(patch.marginValue)));
     }
     const product = await updateAdminProduct(params.id, patch);
     if (!product) { set.status = 404; return { ok: false, message: 'Product not found' }; }

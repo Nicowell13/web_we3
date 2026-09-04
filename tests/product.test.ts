@@ -1,4 +1,15 @@
 import { describe, expect, it, mock } from 'bun:test';
+import { calculatePriceFromMargin } from '../src/modules/admin/product-admin.service';
+
+ describe('Admin pricing calculation', () => {
+  it('calculates fixed and percentage margins', () => {
+    expect(calculatePriceFromMargin(10000, 'fixed', 1500)).toBe(11500);
+    expect(calculatePriceFromMargin(10000, 'percentage', 10)).toBe(11000);
+  });
+  it('rejects percentage over 100', () => {
+    expect(() => calculatePriceFromMargin(10000, 'percentage', 101)).toThrow();
+  });
+});
 
 // Mock product service
 mock.module('../src/modules/product/product.service', () => ({
