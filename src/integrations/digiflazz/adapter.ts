@@ -1,12 +1,10 @@
-import { createHmac } from 'crypto';
+import { createHash } from 'crypto';
 import { TopUpProvider } from '../../modules/suppliers/topupProvider';
 
 const BASE_URL = 'https://api.digiflazz.com/v1';
 
 function makeSignature(username: string, apiKey: string, ref: string) {
-  return createHmac('md5', apiKey)
-    .update(username + apiKey + ref)
-    .digest('hex');
+  return createHash('md5').update(username + apiKey + ref).digest('hex');
 }
 
 async function post(endpoint: string, body: Record<string, unknown>) {
@@ -16,6 +14,7 @@ async function post(endpoint: string, body: Record<string, unknown>) {
     body: JSON.stringify(body),
   });
   const json = await res.json() as { data: any };
+  if (!res.ok) throw new Error(json?.data?.message || `Digiflazz request failed (${res.status})`);
   return json.data ?? json;
 }
 
@@ -57,12 +56,13 @@ export class DigiflazzAdapter implements TopUpProvider {
 
   async getProducts() {
     const sign = makeSignature(this.username, this.apiKey, 'pricelist');
-    return post('/price-list', {
+    const products = await post('/price-list', {
       cmd: 'prepaid',
       username: this.username,
       sign,
-      code: 'all',
     });
+    if (!Array.isArray(products)) throw new Error(products?.message || 'Digiflazz price list response is invalid');
+    return products;
   }
 
   async checkOrderStatus(orderRef: string) {
