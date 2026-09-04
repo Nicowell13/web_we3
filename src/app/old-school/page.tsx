@@ -65,6 +65,7 @@ export default function OldSchoolPage() {
   const [vouchers, setVouchers] = useState<AdminVoucher[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [actionMessage, setActionMessage] = useState('');
+  const [syncingProducts, setSyncingProducts] = useState(false);
   const [banner, setBanner] = useState<HomeBanner | null>(null);
   const [editingVoucher, setEditingVoucher] = useState<AdminVoucher | null>(null);
   const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
@@ -159,8 +160,10 @@ export default function OldSchoolPage() {
     if (!user) return;
     const token = await user.getIdToken();
     const res = await fetch(`${apiBase}${path}`, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
-    setActionMessage(res.ok ? 'Perubahan tersimpan.' : 'Perubahan gagal.');
+    const result = await res.json().catch(() => ({}));
+    setActionMessage(res.ok ? (result.total === undefined ? 'Perubahan tersimpan.' : `Sync selesai: ${result.created} baru, ${result.updated} diperbarui, ${result.unchanged} tetap, ${result.failed} gagal dari ${result.total}.`) : (result.message || `Request gagal (${res.status}).`));
     if (res.ok) await verifyAndLoad();
+    return res.ok;
   };
 
   const handleUpdateConfig = async (key: string, value: string) => {
@@ -332,8 +335,8 @@ export default function OldSchoolPage() {
       <div className="glass-panel p-6 rounded-2xl border border-surface-border space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-cyber font-bold text-white">Products & Digiflazz</h2>
-          <button onClick={() => adminAction('/api/v1/old-school/suppliers/digiflazz/sync-products', 'POST')} className="px-3 py-1.5 rounded bg-primary/20 border border-primary/40 text-primary text-xs font-semibold hover:bg-primary hover:text-black">
-            Sync Digiflazz
+          <button disabled={syncingProducts} onClick={async () => { setSyncingProducts(true); try { await adminAction('/api/v1/old-school/suppliers/digiflazz/sync-products', 'POST'); } finally { setSyncingProducts(false); } }} className="px-3 py-1.5 rounded bg-primary/20 border border-primary/40 text-primary text-xs font-semibold hover:bg-primary hover:text-black disabled:opacity-50">
+            {syncingProducts ? 'Syncing…' : 'Sync Digiflazz'}
           </button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
