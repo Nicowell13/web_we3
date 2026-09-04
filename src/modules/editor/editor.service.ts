@@ -18,6 +18,20 @@ export async function listEditorArticles(search?: string, status?: string) {
     .orderBy(desc(articles.updatedAt)).limit(200);
 }
 
+export async function listPublishedArticles(search?: string) {
+  return db.select(articleColumns).from(articles)
+    .where(and(eq(articles.status, 'published'), search ? ilike(articles.title, `%${search}%`) : undefined))
+    .orderBy(desc(articles.publishAt), desc(articles.createdAt)).limit(100);
+}
+
+export async function getPublishedArticle(slug: string) {
+  const [article] = await db.select(articleColumns).from(articles)
+    .where(and(eq(articles.slug, slug), eq(articles.status, 'published')));
+  if (!article) return null;
+  const faqs = await db.select().from(articleFaqs).where(eq(articleFaqs.articleId, article.id)).orderBy(articleFaqs.sortOrder);
+  return { ...article, faqs };
+}
+
 export async function getEditorArticle(id: string) {
   const [article] = await db.select(articleColumns).from(articles).where(eq(articles.id, id));
   if (!article) return null;

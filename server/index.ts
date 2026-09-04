@@ -21,6 +21,7 @@ try {
 import { dashboardRoutes } from '../src/modules/dashboard/dashboard.routes';
 import { bannerAdminRoutes, bannerPublicRoutes } from '../src/modules/banner/banner.routes';
 import { editorRoutes } from '../src/modules/editor/editor.routes';
+import { publicArticleRoutes } from '../src/modules/editor/public-article.routes';
 
 const port = Number(process.env.PORT) || 3001;
 
@@ -41,6 +42,7 @@ export const app = new Elysia()
     maintenance: false,
   }))
   .use(bannerPublicRoutes)
+  .use(publicArticleRoutes)
 
   // Auth module
   .use(authRoutes)
