@@ -37,7 +37,7 @@ async function resolveDbUser(uid: string) {
   });
 }
 
-async function resolveDbRole(uid: string): Promise<'admin' | 'user'> {
+async function resolveDbRole(uid: string): Promise<'admin' | 'editor' | 'user'> {
   const dbUser = await db.query.users.findFirst({
     where: eq(users.id, uid),
     columns: { role: true },
@@ -55,14 +55,14 @@ export const authenticate = new Elysia({ name: 'authenticate' })
   .derive({ as: 'scoped' }, async ({ request }) => {
     const decoded = await resolveToken(request);
     const dbUser = await resolveDbUser(decoded.uid);
-    const role = dbUser?.role === 'admin' ? 'admin' : 'user';
+    const role = dbUser?.role === 'admin' ? 'admin' : dbUser?.role === 'editor' ? 'editor' : 'user';
     if (dbUser?.status === 'banned') throw new ForbiddenError('Account banned');
     if (dbUser?.status === 'suspended') throw new ForbiddenError('Account suspended');
     return { user: { ...decoded, role, status: dbUser?.status ?? 'active' }, role };
   });
 
 /** requireRole plugin — throws 403 if caller role from Supabase users.role does not match. */
-export function requireRole(requiredRole: 'admin' | 'user') {
+export function requireRole(requiredRole: 'admin' | 'editor' | 'user' | Array<'admin' | 'editor' | 'user'>) {
   return new Elysia({ name: `requireRole:${requiredRole}` })
     .error({ UnauthorizedError, ForbiddenError })
     .onError(({ error, set }) => {
@@ -72,12 +72,13 @@ export function requireRole(requiredRole: 'admin' | 'user') {
     .derive({ as: 'scoped' }, async ({ request }) => {
       const decoded = await resolveToken(request);
       const dbUser = await resolveDbUser(decoded.uid);
-      const role = dbUser?.role === 'admin' ? 'admin' : 'user';
+      const role = dbUser?.role === 'admin' ? 'admin' : dbUser?.role === 'editor' ? 'editor' : 'user';
       if (dbUser?.status === 'banned' || dbUser?.status === 'suspended') {
         throw new ForbiddenError(`Account ${dbUser.status}`);
       }
-      if (requiredRole === 'admin' && role !== 'admin') {
-        throw new ForbiddenError('Forbidden: admin role required');
+      const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+      if (!allowedRoles.includes(role)) {
+        throw new ForbiddenError(`Forbidden: ${allowedRoles.join(' or ')} role required`);
       }
       return { user: { ...decoded, role, status: dbUser?.status ?? 'active' }, role };
     });

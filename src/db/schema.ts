@@ -16,7 +16,7 @@ import { relations } from 'drizzle-orm';
 // ----------------------------------------------------
 // ENUMS
 // ----------------------------------------------------
-export const userRoleEnum = pgEnum('user_role', ['user', 'admin']);
+export const userRoleEnum = pgEnum('user_role', ['user', 'admin', 'editor']);
 export const userStatusEnum = pgEnum('user_status', ['active', 'suspended', 'banned']);
 
 export const transactionStatusEnum = pgEnum('transaction_status', [
@@ -30,6 +30,7 @@ export const transactionStatusEnum = pgEnum('transaction_status', [
 
 export const discountTypeEnum = pgEnum('discount_type', ['percentage', 'fixed']);
 export const voucherTypeEnum = pgEnum('voucher_type', ['new_user', 'promo', 'loyalty_points']);
+export const articleStatusEnum = pgEnum('article_status', ['draft', 'scheduled', 'published', 'archived']);
 
 // ----------------------------------------------------
 // 1. USERS & GAMIFICATION
@@ -207,7 +208,46 @@ export const userVouchers = pgTable(
 );
 
 // ----------------------------------------------------
-// 5. SYSTEM CONFIGS & FEATURE FLAGS (Multi-Supplier switcher, Promos)
+// 5. ARTICLES & EDITORIAL CONTENT
+// ----------------------------------------------------
+export const articles = pgTable(
+  'articles',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    title: text('title').notNull(),
+    slug: text('slug').notNull().unique(),
+    category: text('category').notNull(),
+    focusKeyword: text('focus_keyword'),
+    metaDescription: text('meta_description'),
+    contentHtml: text('content_html').notNull(),
+    coverImageUrl: text('cover_image_url'),
+    authorId: text('author_id').notNull().references(() => users.id),
+    authorName: text('author_name').notNull(),
+    status: articleStatusEnum('status').default('draft').notNull(),
+    generatedBy: text('generated_by').default('manual').notNull(),
+    associatedGameId: text('associated_game_id').references(() => gamesCatalog.id),
+    viewCount: integer('view_count').default(0).notNull(),
+    publishAt: timestamp('publish_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index('articles_status_idx').on(table.status), index('articles_slug_idx').on(table.slug)]
+);
+
+export const articleFaqs = pgTable(
+  'article_faqs',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    articleId: uuid('article_id').notNull().references(() => articles.id, { onDelete: 'cascade' }),
+    question: text('question').notNull(),
+    answer: text('answer').notNull(),
+    sortOrder: integer('sort_order').default(0).notNull(),
+  },
+  (table) => [index('article_faqs_article_id_idx').on(table.articleId)]
+);
+
+// ----------------------------------------------------
+// 6. SYSTEM CONFIGS & FEATURE FLAGS (Multi-Supplier switcher, Promos)
 // ----------------------------------------------------
 export const systemConfigs = pgTable(
   'system_configs',
@@ -250,6 +290,7 @@ export const auditTrails = pgTable(
 export const usersRelations = relations(users, ({ many }) => ({
   transactions: many(transactions),
   vouchers: many(userVouchers),
+  articles: many(articles),
 }));
 
 export const gamesCatalogRelations = relations(gamesCatalog, ({ many }) => ({
@@ -277,6 +318,16 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
 
 export const vouchersRelations = relations(vouchers, ({ many }) => ({
   userVouchers: many(userVouchers),
+}));
+
+export const articlesRelations = relations(articles, ({ one, many }) => ({
+  author: one(users, { fields: [articles.authorId], references: [users.id] }),
+  game: one(gamesCatalog, { fields: [articles.associatedGameId], references: [gamesCatalog.id] }),
+  faqs: many(articleFaqs),
+}));
+
+export const articleFaqsRelations = relations(articleFaqs, ({ one }) => ({
+  article: one(articles, { fields: [articleFaqs.articleId], references: [articles.id] }),
 }));
 
 export const userVouchersRelations = relations(userVouchers, ({ one }) => ({

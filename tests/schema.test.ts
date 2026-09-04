@@ -11,11 +11,21 @@ describe('[FEAT-01] Database Schema Definition & Integrity', () => {
     expect(schema.userVouchers).toBeDefined();
     expect(schema.systemConfigs).toBeDefined();
     expect(schema.auditTrails).toBeDefined();
+    expect(schema.articles).toBeDefined();
+    expect(schema.articleFaqs).toBeDefined();
 
     expect(schema.userRoleEnum).toBeDefined();
+    expect(schema.articleStatusEnum).toBeDefined();
     expect(schema.transactionStatusEnum).toBeDefined();
     expect(schema.discountTypeEnum).toBeDefined();
     expect(schema.userStatusEnum).toBeDefined();
+  });
+
+  it('should support editor role and article editorial fields', () => {
+    expect(schema.userRoleEnum.enumValues).toContain('editor');
+    expect(schema.articleStatusEnum.enumValues).toEqual(['draft', 'scheduled', 'published', 'archived']);
+    expect(Object.keys(schema.articles)).toEqual(expect.arrayContaining(['title', 'slug', 'authorId', 'publishAt']));
+    expect(Object.keys(schema.articleFaqs)).toEqual(expect.arrayContaining(['articleId', 'question', 'answer']));
   });
 
   it('should have correct columns and data types in users table', () => {
