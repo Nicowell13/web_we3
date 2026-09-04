@@ -6,6 +6,19 @@ import { createEditorArticle, deleteEditorArticle, getEditorArticle, listEditorA
 const slugOk = (slug: unknown) => typeof slug === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) && slug.length <= 160;
 const validStatus = ['draft', 'scheduled', 'published', 'archived'];
 
+export function validateOpenClawArticlePayload(input: any): string | null {
+  if (!input || typeof input !== 'object') return 'payload must be an object';
+  if (!input.title || typeof input.title !== 'string' || input.title.length > 160) return 'title is required and must be <= 160 characters';
+  if (!slugOk(input.slug)) return 'slug must be lowercase kebab-case';
+  if (!input.contentHtml || typeof input.contentHtml !== 'string') return 'contentHtml is required';
+  if (input.status !== undefined && !['draft', 'scheduled'].includes(input.status)) return 'OpenClaw status must be draft or scheduled';
+  if (input.status === 'scheduled' && !input.publishAt) return 'publishAt is required for scheduled articles';
+  if (!input.metaDescription || typeof input.metaDescription !== 'string' || input.metaDescription.length > 160) return 'metaDescription is required and must be <= 160 characters';
+  if (!input.focusKeyword || typeof input.focusKeyword !== 'string') return 'focusKeyword is required';
+  if (input.faqs !== undefined && (!Array.isArray(input.faqs) || input.faqs.some((faq: any) => !faq?.question || !faq?.answer))) return 'faqs must contain question and answer';
+  return null;
+}
+
 export const editorRoutes = new Elysia({ prefix: '/api/v1/edt-school' })
   .use(requireRole(['editor', 'admin']))
   .get('/ping', ({ role }) => ({ ok: true, scope: 'edt-school', role }))
@@ -46,8 +59,9 @@ export const editorRoutes = new Elysia({ prefix: '/api/v1/edt-school' })
   })
   .post('/automated-publish', async ({ body, user, set }) => {
     const input = { ...(body as any), generatedBy: 'openclaw', status: (body as any).status || 'draft' };
-    if (!input.title || !slugOk(input.slug) || !input.contentHtml || !validStatus.includes(input.status)) {
-      set.status = 400; return { ok: false, message: 'Invalid OpenClaw article payload' };
+    const validationError = validateOpenClawArticlePayload(input);
+    if (validationError) {
+      set.status = 400; return { ok: false, message: validationError };
     }
     try { return { ok: true, article: await createEditorArticle(input, { id: user.uid, name: user.name || user.email || user.uid }) }; }
     catch { set.status = 409; return { ok: false, message: 'Slug already exists or payload conflicts' }; }
