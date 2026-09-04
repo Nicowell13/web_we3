@@ -24,9 +24,9 @@ export const adminRoutes = new Elysia({ prefix: '/api/v1/old-school' })
     catch (error) { set.status = 502; return { ok: false, message: error instanceof Error ? error.message : 'Product sync failed' }; }
   })
   .get('/products', async ({ query }) => {
-    const q = query as { search?: string; active?: string };
+    const q = query as { search?: string; active?: string; supplierStatus?: string };
     const active = q.active === undefined ? undefined : q.active === 'true';
-    return { ok: true, products: await listAdminProducts(q.search, active) };
+    return { ok: true, products: await listAdminProducts(q.search, active, q.supplierStatus) };
   })
   .patch('/products/:id', async ({ params, body, set }) => {
     const patch = body as { isActive?: boolean; sellPrice?: string; marginType?: 'fixed' | 'percentage' | null; marginValue?: string | null };

@@ -16,11 +16,13 @@ const columns = {
   isActive: products.isActive, syncedAt: products.syncedAt, updatedAt: products.updatedAt,
 };
 
-export async function listAdminProducts(search?: string, active?: boolean) {
+export async function listAdminProducts(search?: string, active?: boolean, supplierStatus?: string) {
   const term = search?.trim();
+  const status = supplierStatus?.trim();
   return db.select(columns).from(products).where(and(
     term ? ilike(products.denomination, `%${term}%`) : undefined,
     active === undefined ? undefined : eq(products.isActive, active),
+    status ? eq(products.supplierStatus, status) : undefined,
   )).orderBy(desc(products.updatedAt)).limit(200);
 }
 

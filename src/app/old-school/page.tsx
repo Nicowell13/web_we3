@@ -58,6 +58,10 @@ export default function OldSchoolPage() {
   const [loadingData, setLoadingData] = useState(false);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [products, setProducts] = useState<AdminProduct[]>([]);
+  const [productSearch, setProductSearch] = useState('');
+  const [productActive, setProductActive] = useState('');
+  const [productStatus, setProductStatus] = useState('');
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [vouchers, setVouchers] = useState<AdminVoucher[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [actionMessage, setActionMessage] = useState('');
@@ -115,7 +119,7 @@ export default function OldSchoolPage() {
         fetch(`${apiBase}/api/v1/old-school/metrics`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/audit-logs`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/configs`, { headers }),
-        fetch(`${apiBase}/api/v1/old-school/products`, { headers }),
+        fetch(`${apiBase}/api/v1/old-school/products?${new URLSearchParams({ ...(productSearch ? { search: productSearch } : {}), ...(productActive ? { active: productActive } : {}), ...(productStatus ? { supplierStatus: productStatus } : {}) })}`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/vouchers`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/users`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/banners`, { headers }),
@@ -332,9 +336,16 @@ export default function OldSchoolPage() {
             Sync Digiflazz
           </button>
         </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <input value={productSearch} onChange={(e) => setProductSearch(e.target.value)} placeholder="Search SKU / nama" className="bg-black/40 border border-surface-border rounded p-2 text-xs text-white" />
+          <select value={productActive} onChange={(e) => setProductActive(e.target.value)} className="bg-black/40 border border-surface-border rounded p-2 text-xs text-white"><option value="">Semua status</option><option value="true">Active</option><option value="false">Inactive</option></select>
+          <input value={productStatus} onChange={(e) => setProductStatus(e.target.value)} placeholder="Supplier status" className="bg-black/40 border border-surface-border rounded p-2 text-xs text-white" />
+        </div>
+        <div className="flex gap-2"><button onClick={() => adminAction('/api/v1/old-school/products/bulk-status', 'POST', { ids: selectedProducts, isActive: true })} className="text-xs text-primary">Enable selected</button><button onClick={() => adminAction('/api/v1/old-school/products/bulk-status', 'POST', { ids: selectedProducts, isActive: false })} className="text-xs text-primary">Disable selected</button></div>
         <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
-          {products.map(p => (
+          {products.filter(p => (!productSearch || `${p.denomination} ${p.gameId}`.toLowerCase().includes(productSearch.toLowerCase())) && (!productActive || String(p.isActive) === productActive) && (!productStatus || p.supplierStatus.toLowerCase().includes(productStatus.toLowerCase()))).map(p => (
             <div key={p.id} className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-surface border border-surface-border text-xs">
+              <input type="checkbox" checked={selectedProducts.includes(p.id)} onChange={() => setSelectedProducts(v => v.includes(p.id) ? v.filter(id => id !== p.id) : [...v, p.id])} />
               <div className="space-y-0.5">
                 <span className="font-mono text-white font-semibold">{p.gameId} / {p.denomination}</span>
                 <p className="text-[10px] text-slate-400">Modal: Rp {Number(p.basePrice).toLocaleString('id-ID')} • Jual: Rp {Number(p.sellPrice).toLocaleString('id-ID')}</p>
