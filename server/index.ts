@@ -20,6 +20,7 @@ try {
 }
 import { dashboardRoutes } from '../src/modules/dashboard/dashboard.routes';
 import { bannerAdminRoutes, bannerPublicRoutes } from '../src/modules/banner/banner.routes';
+import { editorRoutes } from '../src/modules/editor/editor.routes';
 
 const port = Number(process.env.PORT) || 3001;
 
@@ -61,7 +62,8 @@ export const app = new Elysia()
   // Dashboard and Admin modules
   .use(dashboardRoutes)
   .use(adminRoutes)
-  .use(bannerAdminRoutes);
+  .use(bannerAdminRoutes)
+  .use(editorRoutes);
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, () => {
