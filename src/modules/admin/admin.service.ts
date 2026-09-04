@@ -10,7 +10,7 @@ export async function getAdminMetrics() {
     .then(res => res[0]?.count ?? 0);
 
   const sales = await db
-    .select({ sum: sql<string>`sum(amount::text)` })
+    .select({ sum: sql<string>`coalesce(sum(${transactions.amount}), 0)` })
     .from(transactions)
     .then(res => Number(res[0]?.sum ?? 0));
 
@@ -24,7 +24,7 @@ export async function getAdminMetrics() {
       return map;
     });
 
-  return { totalTransactions: total, totalSales: sales, statusCounts };
+  return { totalTransactions: Number(total), totalSales: sales, statusCounts };
 }
 
 /** Recent audit logs */
