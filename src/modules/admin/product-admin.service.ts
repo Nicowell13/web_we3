@@ -11,8 +11,9 @@ const columns = {
 };
 
 export async function listAdminProducts(search?: string, active?: boolean) {
+  const term = search?.trim();
   return db.select(columns).from(products).where(and(
-    search ? ilike(products.denomination, `%${search}%`) : undefined,
+    term ? ilike(products.denomination, `%${term}%`) : undefined,
     active === undefined ? undefined : eq(products.isActive, active),
   )).orderBy(desc(products.updatedAt)).limit(200);
 }

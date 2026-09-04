@@ -19,7 +19,7 @@ type AuditLog = {
 };
 
 type SystemConfig = { id: string; key: string; value: string; description: string | null; isActive: boolean };
-type AdminProduct = { id: string; denomination: string; basePrice: string; sellPrice: string; isActive: boolean; supplierStatus: string; gameId: string };
+type AdminProduct = { id: string; denomination: string; basePrice: string; sellPrice: string; isActive: boolean; supplierStatus: string; gameId: string; marginType?: 'fixed' | 'percentage' | null; marginValue?: string | null };
 type AdminVoucher = {
   id: string;
   code: string;
@@ -63,6 +63,7 @@ export default function OldSchoolPage() {
   const [actionMessage, setActionMessage] = useState('');
   const [banner, setBanner] = useState<HomeBanner | null>(null);
   const [editingVoucher, setEditingVoucher] = useState<AdminVoucher | null>(null);
+  const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
   const [showAddVoucher, setShowAddVoucher] = useState(false);
   const [createVoucherType, setCreateVoucherType] = useState<'new_user' | 'promo' | 'loyalty_points'>('promo');
 
@@ -338,9 +339,24 @@ export default function OldSchoolPage() {
                 <span className="font-mono text-white font-semibold">{p.gameId} / {p.denomination}</span>
                 <p className="text-[10px] text-slate-400">Modal: Rp {Number(p.basePrice).toLocaleString('id-ID')} • Jual: Rp {Number(p.sellPrice).toLocaleString('id-ID')}</p>
               </div>
-              <button onClick={() => adminAction(`/api/v1/old-school/products/${p.id}`, 'PATCH', { isActive: !p.isActive })} className="text-primary hover:underline">
-                {p.isActive ? 'Disable' : 'Enable'}
-              </button>
+              <div className="flex gap-2 items-center">
+                <button onClick={() => setEditingProduct(p)} className="text-primary hover:underline">Harga</button>
+                <button onClick={() => adminAction(`/api/v1/old-school/products/${p.id}`, 'PATCH', { isActive: !p.isActive })} className="text-primary hover:underline">
+                  {p.isActive ? 'Disable' : 'Enable'}
+                </button>
+              </div>
+              {editingProduct?.id === p.id && (
+                <form className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onSubmit={async (e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const sellPrice = String(f.get('sellPrice') || ''); const marginType = String(f.get('marginType') || 'fixed') as 'fixed' | 'percentage'; const marginValue = String(f.get('marginValue') || '0'); await adminAction(`/api/v1/old-school/products/${p.id}`, 'PATCH', { sellPrice, marginType, marginValue }); setEditingProduct(null); }}>
+                  <div className="glass-panel rounded-xl p-5 w-full max-w-sm space-y-3">
+                    <h3 className="text-sm font-semibold text-white">Atur Harga Produk</h3>
+                    <p className="text-xs text-slate-400">{p.denomination} • Modal Rp {Number(p.basePrice).toLocaleString('id-ID')}</p>
+                    <label className="text-xs text-slate-300 block">Harga jual<input name="sellPrice" defaultValue={p.sellPrice} type="number" min="0" step="0.01" required className="mt-1 w-full bg-black/40 border border-surface-border rounded p-2 text-white" /></label>
+                    <label className="text-xs text-slate-300 block">Margin<select name="marginType" defaultValue={p.marginType || 'fixed'} className="mt-1 w-full bg-black/40 border border-surface-border rounded p-2 text-white"><option value="fixed">Fixed (Rp)</option><option value="percentage">Percentage (%)</option></select></label>
+                    <label className="text-xs text-slate-300 block">Nilai margin<input name="marginValue" defaultValue={p.marginValue || ''} type="number" min="0" step="0.01" className="mt-1 w-full bg-black/40 border border-surface-border rounded p-2 text-white" /></label>
+                    <div className="flex justify-end gap-2"><button type="button" onClick={() => setEditingProduct(null)} className="px-3 py-2 text-xs text-slate-300">Batal</button><button className="px-3 py-2 rounded bg-primary text-black text-xs font-semibold">Simpan</button></div>
+                  </div>
+                </form>
+              )}
             </div>
           ))}
         </div>

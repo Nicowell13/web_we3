@@ -33,6 +33,15 @@ export const adminRoutes = new Elysia({ prefix: '/api/v1/old-school' })
     if (patch.sellPrice !== undefined && (!/^\d+(\.\d{1,2})?$/.test(patch.sellPrice) || Number(patch.sellPrice) < 0)) {
       set.status = 400; return { ok: false, message: 'Invalid sellPrice' };
     }
+    if (patch.marginType !== undefined && patch.marginType !== null && !['fixed', 'percentage'].includes(patch.marginType)) {
+      set.status = 400; return { ok: false, message: 'Invalid marginType' };
+    }
+    if (patch.marginValue !== undefined && patch.marginValue !== null && (!/^\d+(\.\d{1,2})?$/.test(patch.marginValue) || Number(patch.marginValue) < 0)) {
+      set.status = 400; return { ok: false, message: 'Invalid marginValue' };
+    }
+    if (patch.marginType === 'percentage' && Number(patch.marginValue ?? 0) > 100) {
+      set.status = 400; return { ok: false, message: 'Percentage margin cannot exceed 100' };
+    }
     const product = await updateAdminProduct(params.id, patch);
     if (!product) { set.status = 404; return { ok: false, message: 'Product not found' }; }
     return { ok: true, product };
