@@ -21,7 +21,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ productId: 
   // Load product data on mount
   useEffect(() => {
     (async () => {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/v1/product/${productId}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/product/${productId}`);
       const data = await res.json();
       if (data.ok) setProduct(data.product);
       setLoading(false);
@@ -44,7 +44,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ productId: 
       targetServerId: serverId || undefined,
       voucherCode: voucher || undefined,
     };
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/v1/payment/create-link`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/payment/create-link`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

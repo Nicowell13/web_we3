@@ -14,9 +14,8 @@ export default function CatalogPage() {
 
   useEffect(() => {
     (async () => {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/v1/products`, {
-        cache: 'no-store',
-      });
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/products`, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Catalog request failed (${res.status})`);
       const data = (await res.json()) as { ok: boolean; products: any[] };
       if (data.ok) setProducts(data.products);
       setLoading(false);
