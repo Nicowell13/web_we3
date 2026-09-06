@@ -1,7 +1,8 @@
 "use client";
 
-import { use, useState, useEffect } from 'react';
+import { use, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 
 /**
  * Checkout page – displays selected product and dynamic input fields.
@@ -10,6 +11,8 @@ import { useRouter } from 'next/navigation';
 export default function CheckoutPage({ params }: { params: Promise<{ productId: string }> }) {
   const { productId } = use(params);
   const router = useRouter();
+  const { user } = useAuth();
+  const idempotencyKey = useRef<string | null>(null);
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [targetId, setTargetId] = useState('');
@@ -37,21 +40,33 @@ export default function CheckoutPage({ params }: { params: Promise<{ productId: 
     e.preventDefault();
     setResult(null);
     setSubmitting(true);
-    const payload = {
-      orderId: `${Date.now()}_${product.id}`,
-      amount: product.sellPrice,
-      targetUserId: targetId,
-      targetServerId: serverId || undefined,
-      voucherCode: voucher || undefined,
-    };
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/payment/create-link`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const json = await res.json();
-    setResult(json);
-    setSubmitting(false);
+    try {
+      if (!user) throw new Error('Login diperlukan untuk checkout.');
+      idempotencyKey.current ??= crypto.randomUUID();
+      const token = await user.getIdToken();
+      const payload = {
+        productId: product.id,
+        targetUserId: targetId,
+        targetServerId: serverId || undefined,
+        voucherCode: voucher || undefined,
+      };
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/payment/create-link`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          'Idempotency-Key': idempotencyKey.current,
+        },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Checkout gagal.');
+      setResult(json);
+    } catch (error) {
+      setResult({ message: error instanceof Error ? error.message : 'Checkout gagal.' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -91,7 +106,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ productId: 
       </form>
       {result && (
         <pre className="mt-4 p-2 bg-surface rounded text-white overflow-x-auto">
-          {result.paymentUrl ? <a className="text-primary underline" href={result.paymentUrl}>Buka halaman pembayaran</a> : result.message || 'Transaksi belum dapat diproses.'}
+          {result.invoiceUrl ? <a className="text-primary underline" href={result.invoiceUrl}>Buka halaman pembayaran</a> : result.message || 'Transaksi belum dapat diproses.'}
         </pre>
       )}
       <button onClick={() => router.push('/catalog')} className="mt-4 text-primary hover:underline">

@@ -124,6 +124,7 @@ export const transactions = pgTable(
   'transactions',
   {
     orderId: text('order_id').primaryKey(), // e.g. 'WETRI-20260901-XXXX'
+    idempotencyKey: text('idempotency_key'),
     userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
     productId: uuid('product_id')
       .notNull()
@@ -153,6 +154,7 @@ export const transactions = pgTable(
   (table) => [
     index('transactions_user_id_idx').on(table.userId),
     index('transactions_status_idx').on(table.status),
+    uniqueIndex('transactions_idempotency_key_idx').on(table.idempotencyKey),
     index('transactions_created_at_idx').on(table.createdAt),
   ]
 );

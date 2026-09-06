@@ -5,7 +5,7 @@ import { handleDokuWebhook, DokuWebhookPayload } from '../../integrations/doku/w
 import { verifyDokuWebhook } from '../../integrations/doku/client';
 import { db } from '../../db';
 import { transactions, products } from '../../db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 
 function generateOrderId() {
@@ -25,16 +25,29 @@ export const paymentRoutes = new Elysia({ prefix: '/api/v1/payment' })
   .use(authenticate)
   .post(
     '/create-link',
-    async ({ user, body }) => {
-      const { productId, targetUserId, targetServerId, customerEmail, customerPhone, voucherCode } =
-        body as {
-          productId:      string;
-          targetUserId:   string;
-          targetServerId?: string;
-          customerEmail:  string;
-          customerPhone?: string;
-          voucherCode?:   string;
+    async ({ user, body, request }) => {
+      const { productId, targetUserId, targetServerId, customerPhone, voucherCode } = body;
+      const customerEmail = user.email;
+      if (!customerEmail) {
+        return new Response(JSON.stringify({ message: 'Authenticated email required' }), { status: 400 });
+      }
+      const idempotencyKey = request.headers.get('Idempotency-Key')?.trim();
+      if (!idempotencyKey) {
+        return new Response(JSON.stringify({ message: 'Idempotency-Key header required' }), { status: 400 });
+      }
+
+      const existing = await db.query.transactions.findFirst({
+        where: and(eq(transactions.userId, user.uid), eq(transactions.idempotencyKey, idempotencyKey)),
+      });
+      if (existing) {
+        return {
+          ok: true,
+          orderId: existing.orderId,
+          invoiceUrl: existing.paymentInvoiceUrl,
+          amount: Number(existing.amount),
+          reused: true,
         };
+      }
 
       // Load product
       const product = await db.query.products.findFirst({
@@ -51,6 +64,7 @@ export const paymentRoutes = new Elysia({ prefix: '/api/v1/payment' })
       // Insert transaction in PENDING state
       await db.insert(transactions).values({
         orderId,
+        idempotencyKey,
         userId:          user.uid,
         productId:       product.id,
         targetUserId,
@@ -87,6 +101,15 @@ export const paymentRoutes = new Elysia({ prefix: '/api/v1/payment' })
         expiresAt:   link.expiresAt,
         amount,
       };
+    },
+    {
+      body: t.Object({
+        productId: t.String({ minLength: 1 }),
+        targetUserId: t.String({ minLength: 1, maxLength: 128 }),
+        targetServerId: t.Optional(t.String({ maxLength: 128 })),
+        customerPhone: t.Optional(t.String({ maxLength: 32 })),
+        voucherCode: t.Optional(t.String({ maxLength: 64 })),
+      }, { additionalProperties: false }),
     }
   )
 
