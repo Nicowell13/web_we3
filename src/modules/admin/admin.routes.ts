@@ -10,7 +10,6 @@ import { createAdminVoucher, listAdminVouchers, updateAdminVoucher } from './vou
 import { listFailedOrActionOrders, repayAdminOrder } from './order-admin.service';
 import { createCompensationVoucher } from './compensation-admin.service';
 import { bulkUpdateProductStatus, bulkUpdateProductMargin } from './bulk-admin.service';
-import { syncDigiflazzProducts } from '../product/sync.service';
 
 /**
  * Old-school admin panel API – admin‑only protected.

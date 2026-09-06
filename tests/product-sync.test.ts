@@ -44,6 +44,11 @@ describe('[ADMIN-14] Digiflazz product classification', () => {
       const dataRes = classifyDigiflazzProduct({ brand, product_name: 'Paket Data 10GB' });
       expect(dataRes.category).toBe('Data');
       expect(dataRes.groupName).toBe(`${brand} Data`);
+
+      const mappedPulsa = mapDigiflazzProduct({ buyer_sku_code: `${brand}-p`, brand, game_id: brand, product_name: `${brand} 10.000`, price: 10000 });
+      const mappedData = mapDigiflazzProduct({ buyer_sku_code: `${brand}-d`, brand, game_id: brand, product_name: `${brand} Data 10GB`, price: 20000 });
+      expect(mappedPulsa.gameKey).toBe(brand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+      expect(mappedData.gameKey).toBe(`${brand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-data`);
     }
   });
 

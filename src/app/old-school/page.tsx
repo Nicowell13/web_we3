@@ -569,7 +569,7 @@ export default function OldSchoolPage() {
           {['', 'Game', 'Pulsa', 'Data', 'PLN', 'E-Wallet', 'Voucher', 'Other'].map(category => <button key={category} onClick={() => { setProductCategory(category); setProductGroup(''); }} className={`px-3 py-1 rounded-full text-xs border ${productCategory === category ? 'bg-primary text-black border-primary' : 'border-surface-border text-slate-300'}`}>{category || 'Semua'}</button>)}
         </div>
         <div className="flex flex-wrap gap-2">
-          {[...new Set(products.filter(p => !productCategory || (p as any).category === productCategory).map(p => (p as any).brand || p.gameId))].sort().map(group => <button key={group} onClick={() => setProductGroup(group)} className={`px-2.5 py-1 rounded text-[11px] border ${productGroup === group ? 'bg-secondary text-black border-secondary' : 'border-surface-border text-slate-400'}`}>{group}</button>)}
+          {[...new Set(products.filter(p => !productCategory || (p as any).category === productCategory).map(p => (p as any).groupName || p.gameId))].sort().map(group => <button key={group} onClick={() => setProductGroup(group)} className={`px-2.5 py-1 rounded text-[11px] border ${productGroup === group ? 'bg-secondary text-black border-secondary' : 'border-surface-border text-slate-400'}`}>{group}</button>)}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <input value={productSearch} onChange={(e) => setProductSearch(e.target.value)} placeholder="Search SKU / nama" className="bg-black/40 border border-surface-border rounded p-2 text-xs text-white" />
@@ -578,7 +578,7 @@ export default function OldSchoolPage() {
         </div>
         <div className="flex gap-2"><button onClick={() => adminAction('/api/v1/old-school/products/bulk-status', 'POST', { ids: selectedProducts, isActive: true })} className="text-xs text-primary">Enable selected</button><button onClick={() => adminAction('/api/v1/old-school/products/bulk-status', 'POST', { ids: selectedProducts, isActive: false })} className="text-xs text-primary">Disable selected</button></div>
         <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
-          {products.filter(p => (!productCategory || (p as any).category === productCategory) && (!productGroup || ((p as any).brand || p.gameId) === productGroup) && (!productSearch || `${p.denomination} ${p.gameId}`.toLowerCase().includes(productSearch.toLowerCase())) && (!productActive || String(p.isActive) === productActive) && (!productStatus || p.supplierStatus.toLowerCase().includes(productStatus.toLowerCase()))).map(p => (
+          {products.filter(p => (!productCategory || (p as any).category === productCategory) && (!productGroup || ((p as any).groupName || p.gameId) === productGroup) && (!productSearch || `${p.denomination} ${p.gameId}`.toLowerCase().includes(productSearch.toLowerCase())) && (!productActive || String(p.isActive) === productActive) && (!productStatus || p.supplierStatus.toLowerCase().includes(productStatus.toLowerCase()))).map(p => (
             <div key={p.id} className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-surface border border-surface-border text-xs">
               <input type="checkbox" checked={selectedProducts.includes(p.id)} onChange={() => setSelectedProducts(v => v.includes(p.id) ? v.filter(id => id !== p.id) : [...v, p.id])} />
               <div className="space-y-0.5">

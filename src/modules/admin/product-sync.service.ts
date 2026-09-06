@@ -59,7 +59,9 @@ export function mapDigiflazzProduct(item: Record<string, unknown>) {
   const classification = classifyDigiflazzProduct(item);
   const sku = String(item.buyer_sku_code ?? item.sku ?? '').trim();
   const brand = String(item.brand ?? '').trim();
-  const gameKey = normalize(item.game_id ?? classification.groupName);
+  // Group Pulsa/Data must use classification.groupName. Raw supplier game_id/brand
+  // merges both categories into one games_catalog row and corrupts category labels.
+  const gameKey = normalize(classification.groupName);
   const price = String(item.price ?? item.cost_price ?? '').trim();
 
   const buyerActive = item.buyer_product_status !== undefined ? Boolean(item.buyer_product_status) : true;
