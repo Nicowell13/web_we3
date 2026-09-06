@@ -9,6 +9,8 @@ import { bulkUpdateProducts, calculatePriceFromMargin, getProductSummary, listAd
 import { createAdminVoucher, listAdminVouchers, updateAdminVoucher } from './voucher-admin.service';
 import { listFailedOrActionOrders, repayAdminOrder } from './order-admin.service';
 import { createCompensationVoucher } from './compensation-admin.service';
+import { bulkUpdateProductStatus, bulkUpdateProductMargin } from './bulk-admin.service';
+import { syncDigiflazzProducts } from '../product/sync.service';
 
 /**
  * Old-school admin panel API – admin‑only protected.
@@ -120,6 +122,52 @@ export const adminRoutes = new Elysia({ prefix: '/api/v1/old-school' })
   .get('/configs', async () => {
     const cfg = await getSystemConfigs();
     return { ok: true, configs: cfg };
+  })
+  .post('/products/bulk-status', async ({ body, set }) => {
+    const input = body as any;
+    if (typeof input?.isActive !== 'boolean' || !['all', 'category', 'gameId', 'ids'].includes(input?.scope)) {
+      set.status = 400;
+      return { ok: false, message: 'Invalid bulk status payload' };
+    }
+    try {
+      const result = await bulkUpdateProductStatus({
+        isActive: input.isActive,
+        scope: input.scope,
+        target: input.target,
+      });
+      return result;
+    } catch (err: any) {
+      set.status = 500;
+      return { ok: false, message: err?.message || 'Failed to bulk update status' };
+    }
+  })
+  .post('/products/bulk-margin', async ({ body, set }) => {
+    const input = body as any;
+    if (!['percentage', 'fixed'].includes(input?.marginType) || Number(input?.marginValue) < 0 || !['all', 'category', 'gameId', 'ids'].includes(input?.scope)) {
+      set.status = 400;
+      return { ok: false, message: 'Invalid bulk margin payload' };
+    }
+    try {
+      const result = await bulkUpdateProductMargin({
+        marginType: input.marginType,
+        marginValue: input.marginValue,
+        scope: input.scope,
+        target: input.target,
+      });
+      return result;
+    } catch (err: any) {
+      set.status = 500;
+      return { ok: false, message: err?.message || 'Failed to bulk update margin' };
+    }
+  })
+  .post('/products/sync-now', async ({ set }) => {
+    try {
+      const result = await syncDigiflazzProducts();
+      return { ok: true, ...result };
+    } catch (err: any) {
+      set.status = 500;
+      return { ok: false, message: err?.message || 'Manual sync failed' };
+    }
   })
   .get('/orders/action-needed', async () => {
     return { ok: true, orders: await listFailedOrActionOrders() };

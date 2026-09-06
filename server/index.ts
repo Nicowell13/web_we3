@@ -23,6 +23,7 @@ import { bannerAdminRoutes, bannerPublicRoutes } from '../src/modules/banner/ban
 import { editorRoutes } from '../src/modules/editor/editor.routes';
 import { publicArticleRoutes } from '../src/modules/editor/public-article.routes';
 import { rankingRoutes } from '../src/modules/ranking/ranking.routes';
+import { startMidnightSyncScheduler } from '../src/modules/product/scheduler.service';
 
 const port = Number(process.env.PORT) || 3001;
 
@@ -72,5 +73,6 @@ export const app = new Elysia()
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, () => {
     console.log(`[WETRI Server] ElysiaJS running on http://localhost:${port}`);
+    startMidnightSyncScheduler();
   });
 }
