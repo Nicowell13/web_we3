@@ -22,6 +22,7 @@ import { dashboardRoutes } from '../src/modules/dashboard/dashboard.routes';
 import { bannerAdminRoutes, bannerPublicRoutes } from '../src/modules/banner/banner.routes';
 import { editorRoutes } from '../src/modules/editor/editor.routes';
 import { publicArticleRoutes } from '../src/modules/editor/public-article.routes';
+import { rankingRoutes } from '../src/modules/ranking/ranking.routes';
 
 const port = Number(process.env.PORT) || 3001;
 
@@ -43,6 +44,7 @@ export const app = new Elysia()
   }))
   .use(bannerPublicRoutes)
   .use(publicArticleRoutes)
+  .use(rankingRoutes)
 
   // Auth module
   .use(authRoutes)

@@ -61,6 +61,8 @@ async function getFeaturedProducts() {
 export default async function HomePage() {
   const banner = await getHomeBanner();
   const products = await getFeaturedProducts();
+  let rankings: { rank: number; avatarUrl: string | null; score: number }[] = [];
+  try { rankings = (await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/rankings/top-spenders`, { cache: 'no-store' }).then(res => res.json())).rankings ?? []; } catch {}
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-16">
       {/* Hero Section */}
@@ -197,6 +199,11 @@ export default async function HomePage() {
             </Link>
           ))}
         </div>
+      </section>
+      <section className="glass-panel rounded-2xl p-6 border border-secondary/30">
+        <h2 className="font-cyber text-xl font-bold text-white">TOP PLAYER</h2>
+        <p className="text-xs text-slate-400 mt-1">Ranking transaksi sukses</p>
+        <div className="flex items-end gap-4 h-40 mt-6">{rankings.map(item => <div key={item.rank} className="flex-1 flex flex-col items-center gap-2"><div className="w-full bg-secondary/20 rounded-t" style={{ height: `${Math.max(item.score, 8)}%` }} /><span className="text-xs text-secondary">#{item.rank}</span><div className="w-9 h-9 rounded-full overflow-hidden border border-primary">{item.avatarUrl ? <img src={item.avatarUrl} alt="Avatar pemain" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-primary/20" />}</div></div>)}</div>
       </section>
     </div>
   );
