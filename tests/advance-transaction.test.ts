@@ -50,6 +50,49 @@ describe('[FEAT-05] advanceTransaction: state machine + supplier + points', () =
     expect(supplierRef).toBe('WETRI-001');
   });
 
+  it('uses supplier SKU and combines game user + zone for Digiflazz customer_no', async () => {
+    let receivedSku = '';
+    let receivedTarget = '';
+    const fakeTx = {
+      orderId: 'WETRI-ZONE', status: 'PENDING', userId: 'u1', amount: '25000',
+      targetUserId: '12345678', targetServerId: '2024', supplierProductCode: 'ML86',
+    };
+    const mockSupplier = {
+      createOrder: async (sku: string, target: string) => {
+        receivedSku = sku;
+        receivedTarget = target;
+        return { status: 'Pending', ref_id: 'DGFZ-ZONE' };
+      },
+    };
+
+    await advanceTransaction(
+      fakeTx.orderId, 'PAID', {}, async () => fakeTx as any, noop, noop, noop,
+      async () => mockSupplier as any, async () => false
+    );
+
+    expect(receivedSku).toBe('ML86');
+    expect(receivedTarget).toBe('123456782024');
+  });
+
+  it('marks immediately successful supplier response SUCCESS', async () => {
+    const updated: string[] = [];
+    const fakeTx = {
+      orderId: 'WETRI-INSTANT', status: 'PENDING', userId: 'u1', amount: '25000',
+      targetUserId: '08123456789', supplierProductCode: 'TSEL25',
+    };
+    const mockSupplier = {
+      createOrder: async () => ({ status: 'Sukses', ref_id: 'DGFZ-OK', sn: 'SN123' }),
+    };
+
+    await advanceTransaction(
+      fakeTx.orderId, 'PAID', {}, async () => fakeTx as any,
+      async (_id: string, status: string) => { updated.push(status); }, noop, noop,
+      async () => mockSupplier as any, async () => false
+    );
+
+    expect(updated).toContain('SUCCESS');
+  });
+
   it('PROCESSING â†’ SUCCESS awards correct points (Rp 86.000 â†’ 86 pts)', async () => {
     let pointsAwarded = 0;
     const audited: string[] = [];

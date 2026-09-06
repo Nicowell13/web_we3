@@ -1,5 +1,5 @@
 import { db } from '../../db';
-import { transactions, users, auditTrails, pointLedger } from '../../db/schema';
+import { transactions, users, auditTrails, pointLedger, products } from '../../db/schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { assertTransition, isTerminal, TxStatus } from './stateMachine';
 import { calculatePoints } from './points.logic';
@@ -8,7 +8,13 @@ import { rewardReferral } from '../user/referral.service';
 
 // ── Repo helpers (injectable for testing) ────────────────────────────────────
 export async function findTx(orderId: string) {
-  return db.query.transactions.findFirst({ where: eq(transactions.orderId, orderId) });
+  const rows = await db
+    .select({ transaction: transactions, supplierProductCode: products.supplierProductCode })
+    .from(transactions)
+    .innerJoin(products, eq(transactions.productId, products.id))
+    .where(eq(transactions.orderId, orderId))
+    .limit(1);
+  return rows[0] ? { ...rows[0].transaction, supplierProductCode: rows[0].supplierProductCode } : undefined;
 }
 
 async function setTxStatus(
@@ -109,17 +115,30 @@ export async function advanceTransaction(
   if (targetStatus === 'PAID') {
     try {
       const supplier  = await _getSupplier();
-      const product   = (tx as any).product ?? {};
+      const supplierProductCode = (tx as any).supplierProductCode;
+      if (!supplierProductCode) throw new Error('Supplier product code missing');
+      const customerNo = tx.targetServerId ? `${tx.targetUserId}${tx.targetServerId}` : tx.targetUserId;
       const orderResp = await supplier.createOrder(
-        (tx as any).supplierProductCode ?? product.supplierProductCode ?? '',
-        tx.targetUserId,
+        supplierProductCode,
+        customerNo,
         Number(tx.amount),
         orderId
       );
       const supplierReference = orderResp?.ref_id ?? orderResp?.data?.ref_id ?? orderId;
       const supplierSn = orderResp?.sn ?? orderResp?.data?.sn ?? null;
-      await _setStatus(orderId, 'PROCESSING', { supplierReference, supplierSn });
+      const supplierStatus = String(orderResp?.status ?? orderResp?.data?.status ?? '').toLowerCase();
+      const fulfillmentStatus: TxStatus = supplierStatus === 'sukses' ? 'SUCCESS' : supplierStatus === 'gagal' ? 'FAILED' : 'PROCESSING';
+      await _setStatus(orderId, fulfillmentStatus, {
+        supplierReference,
+        supplierSn,
+        ...(fulfillmentStatus === 'SUCCESS' ? { completedAt: new Date() } : {}),
+      });
       await _audit('SUPPLIER_ORDER_CREATED', orderId, { targetStatus: 'PAID' }, orderResp);
+      if (fulfillmentStatus === 'SUCCESS' && tx.userId) {
+        const earned = calculatePoints(Number(tx.amount));
+        if (earned > 0) await _addPoints(tx.userId, orderId, earned);
+        await _rewardReferral(tx.userId, orderId);
+      }
     } catch (err: any) {
       await _audit('SUPPLIER_ORDER_FAILED', orderId, null, { error: err.message });
       // Keep PAID: payment is confirmed, fulfillment remains retryable.
