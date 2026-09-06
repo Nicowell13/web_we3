@@ -13,13 +13,13 @@ export function classifyDigiflazzProduct(item: Record<string, unknown>) {
   const key = normalize(`${brand} ${type} ${name}`);
   const brandKey = normalize(brand);
   const pulsa = new Set(['telkomsel', 'xl', 'axis', 'indosat', 'tri', 'smartfren', 'by-u']);
-  const games = new Set(['mobile-legends', 'free-fire']);
+  const games = new Set(['mobile-legends', 'free-fire', 'mgcc']);
   const wallets = new Set(['dana', 'ovo', 'go-pay', 'gopay', 'shopee-pay', 'shopeepay']);
   const groupName = brand || 'Other';
   const subCategory = type || 'Umum';
   if (brandKey === 'pln' || key.includes('token-listrik')) return { category: 'PLN', groupName: 'PLN', subCategory: subCategory === 'Umum' ? 'Token' : subCategory };
   if (pulsa.has(brandKey)) return { category: 'Pulsa', groupName, subCategory };
-  if (games.has(brandKey)) return { category: 'Game', groupName, subCategory };
+  if (games.has(brandKey) || normalize(type).includes('game')) return { category: 'Game', groupName, subCategory };
   if (wallets.has(brandKey)) return { category: 'E-Wallet', groupName, subCategory };
   if (key.includes('voucher')) return { category: 'Voucher', groupName, subCategory };
   return { category: 'Other', groupName, subCategory };
@@ -51,9 +51,9 @@ export async function syncDigiflazzProducts() {
   if (!supplier.getProducts) throw new Error('Active supplier does not support product sync');
   const incoming = await supplier.getProducts();
   if (!Array.isArray(incoming)) throw new Error('Digiflazz product response is invalid');
-  const games = await db.query.gamesCatalog.findMany({ columns: { id: true, name: true } });
+  const games = await db.query.gamesCatalog.findMany({ columns: { id: true, name: true, category: true } });
   const gameByKey = new Map(games.flatMap((game) => [[normalize(game.id), game], [normalize(game.name), game]]));
-  let created = 0, updated = 0, unchanged = 0, failed = 0, gamesCreated = 0;
+  let created = 0, updated = 0, unchanged = 0, failed = 0, gamesCreated = 0, groupsCreated = 0, groupsUpdated = 0;
 
   for (const raw of incoming) {
     const item = mapDigiflazzProduct(raw as Record<string, unknown>);
@@ -61,14 +61,15 @@ export async function syncDigiflazzProducts() {
     let game = gameByKey.get(item.gameKey);
     try {
       if (!game) {
-        const [createdGame] = await db.insert(gamesCatalog).values({ id: item.gameKey, name: item.groupName, publisher: 'Digiflazz', category: item.category, thumbnailUrl: '/logo.webp', isActive: true }).onConflictDoNothing().returning({ id: gamesCatalog.id, name: gamesCatalog.name });
-        game = createdGame ?? await db.query.gamesCatalog.findFirst({ where: eq(gamesCatalog.id, item.gameKey), columns: { id: true, name: true } });
+        const [createdGame] = await db.insert(gamesCatalog).values({ id: item.gameKey, name: item.groupName, publisher: 'Digiflazz', category: item.category, thumbnailUrl: '/logo.webp', isActive: true }).onConflictDoNothing().returning({ id: gamesCatalog.id, name: gamesCatalog.name, category: gamesCatalog.category });
+        game = createdGame ?? await db.query.gamesCatalog.findFirst({ where: eq(gamesCatalog.id, item.gameKey), columns: { id: true, name: true, category: true } });
         if (!game) { failed++; continue; }
         gameByKey.set(item.gameKey, game);
         gameByKey.set(normalize(game.name), game);
-        if (createdGame) gamesCreated++;
-      } else {
-        await db.update(gamesCatalog).set({ category: item.category, updatedAt: new Date() }).where(eq(gamesCatalog.id, game.id));
+        if (createdGame) { gamesCreated++; groupsCreated++; }
+      } else if (game.name !== item.groupName || game.category !== item.category) {
+        await db.update(gamesCatalog).set({ name: item.groupName, category: item.category, updatedAt: new Date() }).where(eq(gamesCatalog.id, game.id));
+        groupsUpdated++;
       }
       const existing = await db.query.products.findFirst({ where: and(eq(products.supplierCode, 'digiflazz'), eq(products.supplierProductCode, item.sku)) });
       const now = new Date();
@@ -84,5 +85,5 @@ export async function syncDigiflazzProducts() {
       }
     } catch { failed++; }
   }
-  return { created, updated, unchanged, failed, gamesCreated, total: incoming.length };
+  return { created, updated, unchanged, failed, gamesCreated, groupsCreated, groupsUpdated, total: incoming.length };
 }
