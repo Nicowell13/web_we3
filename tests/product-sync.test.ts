@@ -37,7 +37,8 @@ describe('[ADMIN-14] Digiflazz product classification', () => {
 
   it('classifies pulsa providers', () => {
     for (const brand of ['TELKOMSEL', 'XL', 'AXIS', 'INDOSAT', 'TRI', 'SMARTFREN', 'BY.U']) {
-      expect(classifyDigiflazzProduct({ brand }).category).toBe('Pulsa');
+      expect(classifyDigiflazzProduct({ brand, product_name: 'Pulsa 10.000' }).category).toBe('Pulsa');
+      expect(classifyDigiflazzProduct({ brand, product_name: 'Paket Data 10GB' }).category).toBe('Data');
     }
   });
 

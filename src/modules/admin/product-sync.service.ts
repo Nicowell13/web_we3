@@ -20,7 +20,10 @@ export function classifyDigiflazzProduct(item: Record<string, unknown>) {
   const groupName = brand || 'Other';
   const subCategory = type || 'Umum';
   if (brandKey === 'pln' || key.includes('token-listrik')) return { category: 'PLN', groupName: 'PLN', subCategory: subCategory === 'Umum' ? 'Token' : subCategory };
-  if (pulsa.has(brandKey)) return { category: 'Pulsa', groupName, subCategory };
+  if (pulsa.has(brandKey)) {
+    const isData = key.includes('data') || key.includes('kuota') || key.includes('internet') || key.includes('gb');
+    return { category: isData ? 'Data' : 'Pulsa', groupName, subCategory };
+  }
   if (games.has(brandKey) || normalize(type).includes('game') || gameNameHints.some((hint) => key.includes(hint))) return { category: 'Game', groupName, subCategory };
   if (wallets.has(brandKey)) return { category: 'E-Wallet', groupName, subCategory };
   if (key.includes('voucher')) return { category: 'Voucher', groupName, subCategory };

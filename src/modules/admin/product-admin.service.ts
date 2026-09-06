@@ -20,7 +20,7 @@ const columns = { ...productColumns, category: gamesCatalog.category, groupName:
 
 export async function getProductSummary() {
   const rows = await db.select({ category: gamesCatalog.category, groupName: gamesCatalog.name, isActive: products.isActive, syncedAt: products.syncedAt }).from(products).innerJoin(gamesCatalog, eq(products.gameId, gamesCatalog.id));
-  const order = ['Game', 'Pulsa', 'PLN', 'E-Wallet', 'Voucher', 'Other'];
+  const order = ['Game', 'Pulsa', 'Data', 'PLN', 'E-Wallet', 'Voucher', 'Other'];
   const map = new Map<string, { name: string; count: number; activeCount: number; groups: Map<string, { name: string; count: number; activeCount: number }> }>();
   for (const row of rows) {
     const category = row.category || 'Other';
