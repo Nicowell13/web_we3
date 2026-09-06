@@ -423,23 +423,25 @@ export default function OldSchoolPage() {
 
             {bulkScope !== 'all' && (
               <div>
-                <label className="text-[10px] text-slate-400 font-semibold block mb-1">2. Pilih Target {bulkScope === 'category' ? 'Kategori' : 'Game / Provider'}</label>
+                <label className="text-[10px] text-slate-400 font-semibold block mb-1">2. Pilih Target {bulkScope === 'category' ? 'Kategori' : 'Sub-Kategori (Brand / Game ID)'}</label>
                 {bulkScope === 'category' ? (
                   <select
                     value={bulkTarget}
                     onChange={(e) => setBulkTarget(e.target.value)}
                     className="w-full bg-black/40 border border-surface-border rounded-lg p-2 text-xs text-white font-mono focus:border-primary focus:outline-none"
                   >
-                    {['Game', 'Pulsa', 'Data', 'PLN', 'E-Wallet', 'Voucher'].map(c => <option key={c} value={c}>{c}</option>)}
+                    {['Game', 'Pulsa', 'Data', 'PLN', 'E-Wallet', 'Voucher', 'Other'].map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 ) : (
-                  <input
-                    type="text"
-                    placeholder="e.g. mobile-legends, free-fire, telkomsel"
+                  <select
                     value={bulkTarget}
                     onChange={(e) => setBulkTarget(e.target.value)}
                     className="w-full bg-black/40 border border-surface-border rounded-lg p-2 text-xs text-white font-mono focus:border-primary focus:outline-none"
-                  />
+                  >
+                    {[...new Set(products.map(p => (p as any).brand || p.gameId))].filter(Boolean).sort().map(sub => (
+                      <option key={sub} value={sub}>{sub}</option>
+                    ))}
+                  </select>
                 )}
               </div>
             )}
