@@ -36,6 +36,7 @@ export type PlnInquiryResult = {
   subscriberId?: string;
   segmentPower?: string;
   message?: string;
+  errorCode?: 'INVALID_CUSTOMER' | 'SUPPLIER_UNAVAILABLE';
 };
 
 /** Run real Digiflazz PLN inquiry using admin/store credentials. */
@@ -66,6 +67,7 @@ export async function inquirePlnCustomer(customerNo: string, supplier?: TopUpPro
         ok: false,
         customerNo: cleanNo,
         message: String(data?.message || 'ID Pelanggan tidak terdaftar atau salah. Periksa kembali nomor meter Anda.'),
+        errorCode: 'INVALID_CUSTOMER',
       };
     }
 
@@ -83,10 +85,15 @@ export async function inquirePlnCustomer(customerNo: string, supplier?: TopUpPro
 
     return result;
   } catch (error) {
+    const supplierMessage = error instanceof Error ? error.message : '';
+    const configurationError = /signature|ip anda|credential|api key/i.test(supplierMessage);
     return {
       ok: false,
       customerNo: cleanNo,
-      message: error instanceof Error ? error.message : 'Gagal memeriksa ID Pelanggan PLN.',
+      message: configurationError
+        ? 'Layanan validasi PLN belum siap. Hubungi admin atau coba kembali nanti.'
+        : 'Layanan validasi PLN sedang tidak tersedia. Coba kembali nanti.',
+      errorCode: 'SUPPLIER_UNAVAILABLE',
     };
   }
 }

@@ -74,7 +74,7 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
   // PLN state & realtime inquiry
   const [plnId, setPlnId] = useState('');
   const [plnInquiryLoading, setPlnInquiryLoading] = useState(false);
-  const [plnInquiryResult, setPlnInquiryResult] = useState<{ ok: boolean; maskedName?: string; message?: string } | null>(null);
+  const [plnInquiryResult, setPlnInquiryResult] = useState<{ ok: boolean; maskedName?: string; segmentPower?: string; message?: string } | null>(null);
 
   // Game state
   const [selectedGame, setSelectedGame] = useState('mobile-legends');
@@ -128,7 +128,7 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
         });
         const data = await res.json();
         if (res.ok && data.ok) {
-          setPlnInquiryResult({ ok: true, maskedName: data.maskedName });
+          setPlnInquiryResult({ ok: true, maskedName: data.maskedName, segmentPower: data.segmentPower });
         } else {
           setPlnInquiryResult({ ok: false, message: data.message || 'ID Pelanggan PLN tidak ditemukan' });
         }
@@ -409,7 +409,9 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
                   <>
                     <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
                     <span>
-                      Pelanggan Terdaftar: <strong className="text-white uppercase">{plnInquiryResult.maskedName}</strong>
+                      Pelanggan terverifikasi: <strong className="text-white uppercase">{plnInquiryResult.maskedName}</strong>
+                      {plnInquiryResult.segmentPower && <span className="block mt-1">Daya/Tarif: <strong className="text-white">{plnInquiryResult.segmentPower}</strong></span>}
+                      <span className="block mt-1 text-[10px]">Pastikan nama tersensor ini sesuai sebelum checkout.</span>
                     </span>
                   </>
                 ) : (

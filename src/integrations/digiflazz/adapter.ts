@@ -38,8 +38,8 @@ export class DigiflazzAdapter implements TopUpProvider {
   private apiKey: string;
 
   constructor(username: string, apiKey: string) {
-    this.username = username;
-    this.apiKey = apiKey;
+    this.username = username.trim();
+    this.apiKey = apiKey.trim();
   }
 
   async checkBalance() {
@@ -57,9 +57,11 @@ export class DigiflazzAdapter implements TopUpProvider {
   }
 
   async inquirePln(customerNo: string) {
-    const sign = makeSignature(this.username, this.apiKey, customerNo);
+    const username = (process.env.DIGIFLAZZ_PLN_USERNAME || this.username).trim();
+    const apiKey = (process.env.DIGIFLAZZ_PLN_API_KEY || this.apiKey).trim();
+    const sign = makeSignature(username, apiKey, customerNo);
     return post('/inquiry-pln', {
-      username: this.username,
+      username,
       customer_no: customerNo,
       sign,
     });

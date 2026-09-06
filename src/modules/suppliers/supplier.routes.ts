@@ -25,7 +25,7 @@ export const supplierPublicRoutes = new Elysia({ prefix: '/api/v1/supplier' })
     const input = body as { customerNo?: string };
     const result = await inquirePlnCustomer(String(input?.customerNo || ''));
     if (!result.ok) {
-      set.status = 400;
+      set.status = result.errorCode === 'SUPPLIER_UNAVAILABLE' ? 502 : 400;
       return result;
     }
     return result;
