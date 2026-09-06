@@ -5,7 +5,7 @@ import { db } from '../../db';
 import { auditTrails, products, users } from '../../db/schema';
 import { desc, eq, ilike } from 'drizzle-orm';
 import { syncDigiflazzProducts } from './product-sync.service';
-import { bulkUpdateProducts, calculatePriceFromMargin, listAdminProducts, updateAdminProduct } from './product-admin.service';
+import { bulkUpdateProducts, calculatePriceFromMargin, getProductSummary, listAdminProducts, updateAdminProduct } from './product-admin.service';
 import { createAdminVoucher, listAdminVouchers, updateAdminVoucher } from './voucher-admin.service';
 
 /**
@@ -23,6 +23,7 @@ export const adminRoutes = new Elysia({ prefix: '/api/v1/old-school' })
     try { return { ok: true, ...(await syncDigiflazzProducts()) }; }
     catch (error) { set.status = 502; return { ok: false, message: error instanceof Error ? error.message : 'Product sync failed' }; }
   })
+  .get('/products/summary', async () => ({ ok: true, ...(await getProductSummary()) }))
   .get('/products', async ({ query }) => {
     const q = query as { search?: string; active?: string; supplierStatus?: string };
     const active = q.active === undefined ? undefined : q.active === 'true';

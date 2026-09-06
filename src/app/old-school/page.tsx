@@ -64,6 +64,7 @@ export default function OldSchoolPage() {
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [productCategory, setProductCategory] = useState('');
   const [productGroup, setProductGroup] = useState('');
+  const [productSummary, setProductSummary] = useState<any>(null);
   const [vouchers, setVouchers] = useState<AdminVoucher[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [actionMessage, setActionMessage] = useState('');
@@ -118,10 +119,11 @@ export default function OldSchoolPage() {
 
       setAccessState('allowed');
 
-      const [mRes, lRes, cRes, pRes, vRes, uRes, bRes] = await Promise.all([
+      const [mRes, lRes, cRes, sRes, pRes, vRes, uRes, bRes] = await Promise.all([
         fetch(`${apiBase}/api/v1/old-school/metrics`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/audit-logs`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/configs`, { headers }),
+        fetch(`${apiBase}/api/v1/old-school/products/summary`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/products?${new URLSearchParams({ ...(productSearch ? { search: productSearch } : {}), ...(productActive ? { active: productActive } : {}), ...(productStatus ? { supplierStatus: productStatus } : {}) })}`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/vouchers`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/users`, { headers }),
@@ -141,6 +143,7 @@ export default function OldSchoolPage() {
         setLogs(l.logs ?? []);
       }
       if (cRes.ok) { const c = await cRes.json(); setConfigs(c.configs ?? []); }
+      if (sRes.ok) { const s = await sRes.json(); setProductSummary(s); }
       if (pRes.ok) { const p = await pRes.json(); setProducts(p.products ?? []); }
       if (vRes.ok) { const v = await vRes.json(); setVouchers(v.vouchers ?? []); }
       if (uRes.ok) { const u = await uRes.json(); setUsers(u.users ?? []); }
@@ -336,7 +339,7 @@ export default function OldSchoolPage() {
 
       <div className="glass-panel p-6 rounded-2xl border border-surface-border space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-cyber font-bold text-white">Products & Digiflazz</h2>
+          <div><h2 className="text-base font-cyber font-bold text-white">Products & Digiflazz</h2>{productSummary && <p className="text-[10px] text-slate-400 mt-1">{productSummary.totalProducts} produk • {productSummary.activeProducts} aktif • {productSummary.categories?.map((c: any) => `${c.name}: ${c.count}`).join(' • ')}</p>}</div>
           <button disabled={syncingProducts} onClick={async () => { setSyncingProducts(true); try { await adminAction('/api/v1/old-school/suppliers/digiflazz/sync-products', 'POST'); } finally { setSyncingProducts(false); } }} className="px-3 py-1.5 rounded bg-primary/20 border border-primary/40 text-primary text-xs font-semibold hover:bg-primary hover:text-black disabled:opacity-50">
             {syncingProducts ? 'Syncing…' : 'Sync Digiflazz'}
           </button>

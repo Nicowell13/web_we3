@@ -17,6 +17,27 @@ const columns = {
   category: gamesCatalog.category, groupName: gamesCatalog.name,
 };
 
+export async function getProductSummary() {
+  const rows = await db.select({ category: gamesCatalog.category, groupName: gamesCatalog.name, isActive: products.isActive, syncedAt: products.syncedAt }).from(products).innerJoin(gamesCatalog, eq(products.gameId, gamesCatalog.id));
+  const order = ['Game', 'Pulsa', 'PLN', 'E-Wallet', 'Voucher', 'Other'];
+  const map = new Map<string, { name: string; count: number; activeCount: number; groups: Map<string, { name: string; count: number; activeCount: number }> }>();
+  for (const row of rows) {
+    const category = row.category || 'Other';
+    const groupName = row.groupName || 'Other';
+    let bucket = map.get(category);
+    if (!bucket) { bucket = { name: category, count: 0, activeCount: 0, groups: new Map() }; map.set(category, bucket); }
+    bucket.count++;
+    if (row.isActive) bucket.activeCount++;
+    let group = bucket.groups.get(groupName);
+    if (!group) { group = { name: groupName, count: 0, activeCount: 0 }; bucket.groups.set(groupName, group); }
+    group.count++;
+    if (row.isActive) group.activeCount++;
+  }
+  const categories = [...map.values()].sort((a, b) => (order.indexOf(a.name) < 0 ? 99 : order.indexOf(a.name)) - (order.indexOf(b.name) < 0 ? 99 : order.indexOf(b.name))).map(({ groups, ...category }) => ({ ...category, groups: [...groups.values()].sort((a, b) => a.name.localeCompare(b.name)) }));
+  const synced = rows.map(row => row.syncedAt).filter((value): value is Date => value instanceof Date);
+  return { categories, totalProducts: rows.length, activeProducts: rows.filter(row => row.isActive).length, lastSyncedAt: synced.sort((a, b) => b.getTime() - a.getTime())[0] ?? null };
+}
+
 export async function listAdminProducts(search?: string, active?: boolean, supplierStatus?: string) {
   const term = search?.trim();
   const status = supplierStatus?.trim();
