@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { Zap, Sparkles, Shield, Trophy, ArrowRight } from 'lucide-react';
+import { Zap, Sparkles, Shield, Trophy, ArrowRight, Gamepad2, Smartphone, Landmark, WalletCards, HelpCircle } from 'lucide-react';
+import { getAllActiveProducts } from '../modules/product/product.service';
 
 const FEATURED_GAMES = [
   {
@@ -53,8 +54,13 @@ async function getHomeBanner() {
   } catch { return null; }
 }
 
+async function getFeaturedProducts() {
+  try { return (await getAllActiveProducts()).slice(0, 8); } catch { return []; }
+}
+
 export default async function HomePage() {
   const banner = await getHomeBanner();
+  const products = await getFeaturedProducts();
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-16">
       {/* Hero Section */}
@@ -116,6 +122,10 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section className="flex gap-3 overflow-x-auto pb-1">
+        {[[Gamepad2, 'Game', '/catalog'], [Smartphone, 'Pulsa', '/catalog?category=Pulsa'], [Landmark, 'PLN', '/catalog?category=PLN'], [WalletCards, 'E-Wallet', '/catalog?category=E-Wallet'], [HelpCircle, 'Bantuan', '/bantuan']].map(([Icon, label, href]) => <Link key={label as string} href={href as string} className="min-w-[92px] glass-panel rounded-xl p-3 text-center hover:border-primary transition-colors"><Icon className="w-6 h-6 mx-auto mb-2 text-primary" /><span className="text-[11px] text-white">{label as string}</span></Link>)}
+      </section>
+
       {/* Value Proposition Highlights */}
       <section className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <div className="glass-panel p-6 rounded-xl border border-surface-border hover:border-primary/50 transition-all">
@@ -152,7 +162,7 @@ export default async function HomePage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {FEATURED_GAMES.map((game) => (
+          {(products.length ? products : FEATURED_GAMES).map((game: any) => (
             <Link
               key={game.id}
               href={`/catalog/${game.id}`}
@@ -161,27 +171,27 @@ export default async function HomePage() {
               <div className="h-44 w-full relative overflow-hidden bg-slate-800">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={game.image}
-                  alt={game.name}
+                  src={game.thumbnailUrl || game.image}
+                  alt={game.gameName || game.name}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />
                 <div className="absolute top-3 right-3 px-2 py-1 rounded bg-black/70 backdrop-blur border border-secondary text-secondary text-[10px] font-cyber font-bold shadow-neon-pink">
                   {game.discountBadge}
                 </div>
                 <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur text-[10px] text-slate-300">
-                  {game.category}
+                  {game.gameCategory || game.category || 'Game'}
                 </div>
               </div>
               <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
                 <div>
-                  <p className="text-[11px] text-muted">{game.publisher}</p>
+                  <p className="text-[11px] text-muted">{game.gameName || game.publisher}</p>
                   <h3 className="font-cyber font-semibold text-white text-sm group-hover:text-primary transition-colors line-clamp-1">
                     {game.name}
                   </h3>
                 </div>
                 <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
                   <span className="text-slate-400">Mulai</span>
-                  <span className="text-primary font-cyber font-bold">Rp 1.000</span>
+                  <span className="text-primary font-cyber font-bold">Rp {Number(game.sellPrice || 1000).toLocaleString('id-ID')}</span>
                 </div>
               </div>
             </Link>
