@@ -13,8 +13,12 @@ describe('[FEAT-05] advanceTransaction: state machine + supplier + points', () =
     const updated: string[] = [];
     const audited: string[] = [];
 
+    let supplierRef = '';
     const mockSupplier = {
-      createOrder:       async () => ({ status: 'Pending', ref_id: 'DGFZ-001' }),
+      createOrder:       async (_sku: string, _target: string, _amount: number, ref: string) => {
+        supplierRef = ref;
+        return { status: 'Pending', ref_id: 'DGFZ-001' };
+      },
       checkBalance:      async () => {},
       inquireAccount:    async () => {},
       checkOrderStatus:  async () => {},
@@ -42,6 +46,7 @@ describe('[FEAT-05] advanceTransaction: state machine + supplier + points', () =
     expect(audited).toContain('STATUS_CHANGE');
     expect(audited).toContain('SUPPLIER_ORDER_CREATED');
     expect(updated).toContain('PROCESSING');
+    expect(supplierRef).toBe('WETRI-001');
   });
 
   it('PROCESSING → SUCCESS awards correct points (Rp 86.000 → 86 pts)', async () => {

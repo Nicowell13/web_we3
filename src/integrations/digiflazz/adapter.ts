@@ -8,14 +8,29 @@ function makeSignature(username: string, apiKey: string, ref: string) {
 }
 
 async function post(endpoint: string, body: Record<string, unknown>) {
-  const res = await fetch(`${BASE_URL}${endpoint}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const json = await res.json() as { data: any };
-  if (!res.ok) throw new Error(json?.data?.message || `Digiflazz request failed (${res.status})`);
-  return json.data ?? json;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const res = await fetch(`${BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const json = await res.json() as { data: any };
+    const data = json.data ?? json;
+    if (!res.ok || data?.status === 'Gagal') {
+      throw new Error(data?.message || `Digiflazz request failed (${res.status})`);
+    }
+    return data;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('Digiflazz request timed out');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export class DigiflazzAdapter implements TopUpProvider {
@@ -41,8 +56,8 @@ export class DigiflazzAdapter implements TopUpProvider {
     return { targetId, supported: false };
   }
 
-  async createOrder(productSku: string, targetId: string, _amount?: number) {
-    const refId = `WETRI-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+  async createOrder(productSku: string, targetId: string, _amount?: number, orderRef?: string) {
+    const refId = orderRef ?? `WETRI-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
     const sign = makeSignature(this.username, this.apiKey, refId);
     return post('/transaction', {
       username: this.username,

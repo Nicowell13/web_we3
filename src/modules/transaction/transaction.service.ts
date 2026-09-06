@@ -104,9 +104,12 @@ export async function advanceTransaction(
       const orderResp = await supplier.createOrder(
         (tx as any).supplierProductCode ?? product.supplierProductCode ?? '',
         tx.targetUserId,
-        Number(tx.amount)
+        Number(tx.amount),
+        orderId
       );
-      await _setStatus(orderId, 'PROCESSING', {});
+      const supplierReference = orderResp?.ref_id ?? orderResp?.data?.ref_id ?? orderId;
+      const supplierSn = orderResp?.sn ?? orderResp?.data?.sn ?? null;
+      await _setStatus(orderId, 'PROCESSING', { supplierReference, supplierSn });
       await _audit('SUPPLIER_ORDER_CREATED', orderId, { targetStatus: 'PAID' }, orderResp);
     } catch (err: any) {
       await _audit('SUPPLIER_ORDER_FAILED', orderId, null, { error: err.message });

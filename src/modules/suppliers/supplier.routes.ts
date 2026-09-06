@@ -2,8 +2,9 @@ import { Elysia } from 'elysia';
 import { requireRole } from '../../middleware/auth';
 import { getActiveSupplier, resolveSupplier } from './supplierFactory';
 import { db } from '../../db';
-import { systemConfigs } from '../../db/schema';
+import { auditTrails, systemConfigs, transactions } from '../../db/schema';
 import { eq } from 'drizzle-orm';
+import { advanceTransaction } from '../transaction/transaction.service';
 
 /**
  * Public supplier routes (no auth required).
@@ -30,6 +31,29 @@ export const supplierAdminRoutes = new Elysia({ prefix: '/api/v1/supplier' })
     const supplier = await getActiveSupplier();
     const balance = await supplier.checkBalance();
     return { ok: true, balance };
+  })
+
+  .post('/orders/:orderId/reconcile', async ({ params, set }) => {
+    const tx = await db.query.transactions.findFirst({ where: eq(transactions.orderId, params.orderId) });
+    if (!tx || !['PAID', 'PROCESSING'].includes(tx.status)) {
+      set.status = 409;
+      return { ok: false, message: 'Transaction is not eligible for reconciliation' };
+    }
+
+    const supplier = await getActiveSupplier();
+    const reference = tx.supplierReference ?? tx.orderId;
+    const result = await supplier.checkOrderStatus(reference);
+    const status = String(result?.status ?? '').toLowerCase();
+    const nextStatus = status === 'sukses' ? 'SUCCESS' : status === 'gagal' ? 'FAILED' : 'PROCESSING';
+    await db.update(transactions).set({
+      supplierReference: result?.ref_id ?? reference,
+      supplierSn: result?.sn ?? tx.supplierSn,
+      updatedAt: new Date(),
+    }).where(eq(transactions.orderId, tx.orderId));
+    if (tx.status === 'PAID') await advanceTransaction(tx.orderId, 'PROCESSING');
+    if (nextStatus !== 'PROCESSING') await advanceTransaction(tx.orderId, nextStatus);
+    await db.insert(auditTrails).values({ eventType: 'SUPPLIER_RECONCILED', referenceId: tx.orderId, rawResponse: { status: nextStatus } });
+    return { ok: true, orderId: tx.orderId, status: nextStatus };
   })
 
   .post('/switch', async ({ body }) => {
