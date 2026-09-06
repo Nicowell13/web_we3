@@ -10,6 +10,9 @@ export interface TopUpProvider {
    */
   inquireAccount(targetId: string): Promise<any>;
 
+  /** Validate PLN customer ID/meter and return supplier customer metadata. */
+  inquirePln?(customerNo: string): Promise<any>;
+
   /**
    * Create order for a product.
    * @param productSku supplier SKU code

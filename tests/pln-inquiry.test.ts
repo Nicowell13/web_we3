@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'bun:test';
 import { maskPlnCustomerName, isValidPlnCustomerNo, inquirePlnCustomer } from '../src/modules/suppliers/pln-inquiry.service';
+import type { TopUpProvider } from '../src/modules/suppliers/topupProvider';
+
+function supplierWithInquiry(result: any): TopUpProvider {
+  return {
+    checkBalance: async () => ({}),
+    inquireAccount: async () => ({}),
+    inquirePln: async () => result,
+    createOrder: async () => ({}),
+    checkOrderStatus: async () => ({}),
+  };
+}
 
 describe('[FEAT-26] Realtime PLN Inquiry & Privacy Masking Unit Tests', () => {
   it('masks customer names with 2 leading characters and 2 trailing characters', () => {
@@ -11,28 +22,43 @@ describe('[FEAT-26] Realtime PLN Inquiry & Privacy Masking Unit Tests', () => {
   });
 
   it('validates 11-12 digit PLN meter or IDPEL numbers', () => {
-    expect(isValidPlnCustomerNo('14123456789')).toBe(true); // 11 digits
-    expect(isValidPlnCustomerNo('512345678901')).toBe(true); // 12 digits
-    expect(isValidPlnCustomerNo('51234-5678901')).toBe(true); // with dash cleaned to 12 digits
-    expect(isValidPlnCustomerNo('1234567890')).toBe(false); // 10 digits (too short)
-    expect(isValidPlnCustomerNo('1234567890123')).toBe(false); // 13 digits (too long)
+    expect(isValidPlnCustomerNo('14123456789')).toBe(true);
+    expect(isValidPlnCustomerNo('512345678901')).toBe(true);
+    expect(isValidPlnCustomerNo('51234-5678901')).toBe(true);
+    expect(isValidPlnCustomerNo('1234567890')).toBe(false);
+    expect(isValidPlnCustomerNo('1234567890123')).toBe(false);
     expect(isValidPlnCustomerNo('')).toBe(false);
   });
 
-  it('inquirePlnCustomer returns masked name for valid IDPEL', async () => {
-    const result = await inquirePlnCustomer('14123456789');
-    expect(result.ok).toBe(true);
-    expect(result.customerNo).toBe('14123456789');
-    expect(result.maskedName).toBeDefined();
-    expect(result.maskedName).toContain('***');
+  it('accepts only Digiflazz success rc 00 and returns real masked name', async () => {
+    const result = await inquirePlnCustomer('14123456789', supplierWithInquiry({
+      status: 'Sukses', rc: '00', customer_no: '14123456789', meter_no: '14123456789',
+      subscriber_id: '523300817840', name: 'DAVID', segment_power: 'R1 /000001300',
+    }));
+    expect(result).toEqual({
+      ok: true, customerNo: '14123456789', maskedName: 'DA***ID', meterNo: '14123456789',
+      subscriberId: '523300817840', segmentPower: 'R1 /000001300',
+    });
   });
 
-  it('inquirePlnCustomer rejects invalid/unknown IDPEL', async () => {
-    const shortResult = await inquirePlnCustomer('123');
-    expect(shortResult.ok).toBe(false);
+  it('rejects random customer number when Digiflazz returns failed inquiry', async () => {
+    const result = await inquirePlnCustomer('14111111111', supplierWithInquiry({
+      status: 'Gagal', rc: '14', customer_no: '14111111111', message: 'ID Pelanggan Tidak Ditemukan',
+    }));
+    expect(result.ok).toBe(false);
+    expect(result.message).toBe('ID Pelanggan Tidak Ditemukan');
+    expect(result.maskedName).toBeUndefined();
+  });
 
-    const invalidResult = await inquirePlnCustomer('00000000000');
-    expect(invalidResult.ok).toBe(false);
-    expect(invalidResult.message).toContain('tidak terdaftar');
+  it('rejects mismatched customer number and missing name even on claimed success', async () => {
+    const wrongCustomer = await inquirePlnCustomer('14123456789', supplierWithInquiry({
+      status: 'Sukses', rc: '00', customer_no: '14999999999', name: 'WRONG NAME',
+    }));
+    expect(wrongCustomer.ok).toBe(false);
+
+    const missingName = await inquirePlnCustomer('14123456789', supplierWithInquiry({
+      status: 'Sukses', rc: '00', customer_no: '14123456789', name: '',
+    }));
+    expect(missingName.ok).toBe(false);
   });
 });

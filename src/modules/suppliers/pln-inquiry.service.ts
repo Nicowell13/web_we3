@@ -1,24 +1,18 @@
-/**
- * Privacy masking helper for PLN Customer Inquiry.
- * Format: 2 leading characters + '***' + 2 trailing characters.
- * Example: 'BUDI SANTOSO' -> 'BU***SO', 'SITI NURHALIZA' -> 'SI***ZA'
- */
+import { getActiveSupplier } from './supplierFactory';
+import type { TopUpProvider } from './topupProvider';
+
+/** Mask customer name before returning it to public clients. */
 export function maskPlnCustomerName(rawName: string): string {
   if (!rawName || typeof rawName !== 'string') return '***';
   const clean = rawName.trim();
   if (clean.length === 0) return '***';
-
   if (clean.length <= 4) {
     if (clean.length === 1) return `${clean}***`;
     return `${clean.slice(0, 1)}***${clean.slice(-1)}`;
   }
-
   return `${clean.slice(0, 2)}***${clean.slice(-2)}`;
 }
 
-/**
- * Validates whether the given customer number is a valid 11-12 digit PLN meter or IDPEL.
- */
 export function isValidPlnCustomerNo(customerNo: string): boolean {
   if (!customerNo) return false;
   const digitsOnly = customerNo.trim().replace(/\D/g, '');
@@ -28,59 +22,50 @@ export function isValidPlnCustomerNo(customerNo: string): boolean {
 export type PlnInquiryResult = {
   ok: boolean;
   customerNo: string;
-  customerName?: string;
   maskedName?: string;
+  meterNo?: string;
+  subscriberId?: string;
+  segmentPower?: string;
   message?: string;
 };
 
-/**
- * Performs PLN customer inquiry with Digiflazz.
- * For simulation / dev environment, falls back to realistic deterministic names.
- */
-export async function inquirePlnCustomer(customerNo: string): Promise<PlnInquiryResult> {
+/** Run real Digiflazz PLN inquiry. No mock/fallback customer exists. */
+export async function inquirePlnCustomer(customerNo: string, supplier?: TopUpProvider): Promise<PlnInquiryResult> {
   const cleanNo = (customerNo || '').trim().replace(/\D/g, '');
   if (!isValidPlnCustomerNo(cleanNo)) {
-    return {
-      ok: false,
-      customerNo: cleanNo,
-      message: 'Nomor ID Pelanggan / Meter PLN harus 11-12 digit angka.',
-    };
-  }
-
-  // Known invalid test number
-  if (cleanNo === '00000000000' || cleanNo === '99999999999') {
-    return {
-      ok: false,
-      customerNo: cleanNo,
-      message: 'ID Pelanggan tidak terdaftar atau salah. Periksa kembali nomor meter Anda.',
-    };
+    return { ok: false, customerNo: cleanNo, message: 'Nomor ID Pelanggan / Meter PLN harus 11-12 digit angka.' };
   }
 
   try {
-    // In dev / sandbox, generate deterministic customer name based on customer number suffix
-    const sampleNames = [
-      'BUDI SANTOSO',
-      'SITI NURHALIZA',
-      'AGUS SETIAWAN',
-      'DEWI LESTARI',
-      'EKO PRASETYO',
-      'RINA WULANDARI',
-      'HENDRA WIJAYA',
-    ];
-    const index = parseInt(cleanNo.slice(-2), 10) % sampleNames.length;
-    const resolvedName = sampleNames[isNaN(index) ? 0 : index];
+    const provider = supplier ?? await getActiveSupplier();
+    if (!provider.inquirePln) throw new Error('Supplier aktif tidak mendukung inquiry PLN.');
+    const data = await provider.inquirePln(cleanNo);
+    const status = String(data?.status ?? '').toLowerCase();
+    const rc = String(data?.rc ?? '');
+    const returnedCustomerNo = String(data?.customer_no ?? '');
+    const name = String(data?.name ?? '').trim();
+
+    if (status !== 'sukses' || rc !== '00' || !name || returnedCustomerNo !== cleanNo) {
+      return {
+        ok: false,
+        customerNo: cleanNo,
+        message: String(data?.message || 'ID Pelanggan tidak terdaftar atau salah. Periksa kembali nomor meter Anda.'),
+      };
+    }
 
     return {
       ok: true,
       customerNo: cleanNo,
-      customerName: resolvedName,
-      maskedName: maskPlnCustomerName(resolvedName),
+      maskedName: maskPlnCustomerName(name),
+      meterNo: data?.meter_no ? String(data.meter_no) : undefined,
+      subscriberId: data?.subscriber_id ? String(data.subscriber_id) : undefined,
+      segmentPower: data?.segment_power ? String(data.segment_power) : undefined,
     };
-  } catch (err: any) {
+  } catch (error) {
     return {
       ok: false,
       customerNo: cleanNo,
-      message: err?.message || 'Gagal memeriksa ID Pelanggan PLN.',
+      message: error instanceof Error ? error.message : 'Gagal memeriksa ID Pelanggan PLN.',
     };
   }
 }

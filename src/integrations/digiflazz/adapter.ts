@@ -56,6 +56,15 @@ export class DigiflazzAdapter implements TopUpProvider {
     return { targetId, supported: false };
   }
 
+  async inquirePln(customerNo: string) {
+    const sign = makeSignature(this.username, this.apiKey, customerNo);
+    return post('/inquiry-pln', {
+      username: this.username,
+      customer_no: customerNo,
+      sign,
+    });
+  }
+
   async createOrder(productSku: string, targetId: string, _amount?: number, orderRef?: string) {
     const refId = orderRef ?? `WETRI-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
     const sign = makeSignature(this.username, this.apiKey, refId);
