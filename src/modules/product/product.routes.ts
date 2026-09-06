@@ -9,8 +9,9 @@ import { getAllActiveProducts, getProductById } from './product.service';
  */
 export const productRoutes = new Elysia({ prefix: '/api/v1' })
   // Public list – no auth needed (catalog visible to anyone)
-  .get('/products', async () => {
-    const data = await getAllActiveProducts();
+  .get('/products', async ({ query }) => {
+    const q = query as { category?: string; group?: string; search?: string };
+    const data = await getAllActiveProducts({ category: q.category?.trim(), group: q.group?.trim(), search: q.search?.trim() });
     return { ok: true, products: data };
   })
 

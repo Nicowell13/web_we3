@@ -1,11 +1,11 @@
 import { db } from '../../db';
 import { products, gamesCatalog } from '../../db/schema';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, ilike } from 'drizzle-orm';
 
 /**
  * Fetch all active products with minimal game data.
  */
-export async function getAllActiveProducts() {
+export async function getAllActiveProducts(filters?: { category?: string; group?: string; search?: string }) {
   const rows = await db
     .select({
       id: products.id,
@@ -19,7 +19,7 @@ export async function getAllActiveProducts() {
     })
     .from(products)
     .innerJoin(gamesCatalog, eq(products.gameId, gamesCatalog.id))
-    .where(and(eq(products.isActive, true), eq(gamesCatalog.isActive, true)))
+    .where(and(eq(products.isActive, true), eq(gamesCatalog.isActive, true), filters?.category ? eq(gamesCatalog.category, filters.category) : undefined, filters?.group ? eq(gamesCatalog.name, filters.group) : undefined, filters?.search ? ilike(products.denomination, `%${filters.search}%`) : undefined))
     .orderBy(products.displayOrder);
 
   return rows;

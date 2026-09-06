@@ -9,6 +9,7 @@ export default function CatalogPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [cat, setCat] = useState<string>('All');
+  const [group, setGroup] = useState<string>('All');
 
   useEffect(() => {
     (async () => {
@@ -24,12 +25,13 @@ export default function CatalogPage() {
   if (loading) return <p className="text-white">Loading catalog…</p>;
 
   const categories = ['All', ...new Set(products.map(p => p.gameCategory))];
-  const filtered = products.filter(p => cat === 'All' || p.gameCategory === cat);
+  const groups = ['All', ...new Set(products.filter(p => cat === 'All' || p.gameCategory === cat).map(p => p.gameName))];
+  const filtered = products.filter(p => (cat === 'All' || p.gameCategory === cat) && (group === 'All' || p.gameName === group));
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-4 text-white">Katalog Produk</h1>
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-3 overflow-x-auto">
         {categories.map(c => (
           <button
             key={c}
@@ -38,6 +40,7 @@ export default function CatalogPage() {
           >{c}</button>
         ))}
       </div>
+      <div className="flex gap-2 mb-6 overflow-x-auto">{groups.map(g => <button key={g} onClick={() => setGroup(g)} className={`px-3 py-1 rounded text-xs ${g === group ? 'bg-secondary text-black' : 'bg-surface text-slate-400'}`}>{g}</button>)}</div>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {filtered.map(p => (
           <Link
@@ -55,6 +58,7 @@ export default function CatalogPage() {
           </Link>
         ))}
       </div>
+      {!filtered.length && <p className="text-slate-400 text-sm">Produk tidak tersedia di kategori ini.</p>}
     </div>
   );
 }
