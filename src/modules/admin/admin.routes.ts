@@ -43,7 +43,7 @@ export const adminRoutes = new Elysia({ prefix: '/api/v1/old-school' })
     if (patch.marginType === 'percentage' && Number(patch.marginValue ?? 0) > 100) {
       set.status = 400; return { ok: false, message: 'Percentage margin cannot exceed 100' };
     }
-    if (patch.marginType && patch.marginValue !== undefined && patch.sellPrice === undefined) {
+    if (patch.marginType && patch.marginValue !== undefined) {
       const current = await db.query.products.findFirst({ where: eq(products.id, params.id), columns: { basePrice: true } });
       if (!current) { set.status = 404; return { ok: false, message: 'Product not found' }; }
       patch.sellPrice = String(calculatePriceFromMargin(Number(current.basePrice), patch.marginType, Number(patch.marginValue)));
