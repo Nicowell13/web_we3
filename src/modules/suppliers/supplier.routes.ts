@@ -5,6 +5,7 @@ import { db } from '../../db';
 import { auditTrails, systemConfigs, transactions } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import { advanceTransaction } from '../transaction/transaction.service';
+import { inquirePlnCustomer } from './pln-inquiry.service';
 
 /**
  * Public supplier routes (no auth required).
@@ -19,6 +20,15 @@ export const supplierPublicRoutes = new Elysia({ prefix: '/api/v1/supplier' })
     } catch {
       return { supplier: 'digiflazz', isActive: true };
     }
+  })
+  .post('/inquire-pln', async ({ body, set }) => {
+    const input = body as { customerNo?: string };
+    const result = await inquirePlnCustomer(String(input?.customerNo || ''));
+    if (!result.ok) {
+      set.status = 400;
+      return result;
+    }
+    return result;
   });
 
 /**

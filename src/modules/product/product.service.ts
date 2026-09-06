@@ -12,6 +12,7 @@ export async function getAllActiveProducts(filters?: { category?: string; group?
       name: products.denomination,
       denomination: products.denomination,
       sellPrice: products.sellPrice,
+      supplierStatus: products.supplierStatus,
       gameId: products.gameId,
       gameName: gamesCatalog.name,
       gameCategory: gamesCatalog.category,
@@ -19,7 +20,14 @@ export async function getAllActiveProducts(filters?: { category?: string; group?
     })
     .from(products)
     .innerJoin(gamesCatalog, eq(products.gameId, gamesCatalog.id))
-    .where(and(eq(products.isActive, true), eq(gamesCatalog.isActive, true), filters?.category ? eq(gamesCatalog.category, filters.category) : undefined, filters?.group ? eq(gamesCatalog.name, filters.group) : undefined, filters?.search ? ilike(products.denomination, `%${filters.search}%`) : undefined))
+    .where(and(
+      eq(products.isActive, true),
+      eq(products.supplierStatus, 'available'),
+      eq(gamesCatalog.isActive, true),
+      filters?.category ? eq(gamesCatalog.category, filters.category) : undefined,
+      filters?.group ? eq(gamesCatalog.name, filters.group) : undefined,
+      filters?.search ? ilike(products.denomination, `%${filters.search}%`) : undefined
+    ))
     .orderBy(products.displayOrder);
 
   return rows;
