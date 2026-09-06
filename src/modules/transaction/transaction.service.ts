@@ -1,6 +1,6 @@
 import { db } from '../../db';
 import { transactions, users, auditTrails } from '../../db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { assertTransition, isTerminal, TxStatus } from './stateMachine';
 import { calculatePoints } from './points.logic';
 import { getActiveSupplier } from '../suppliers/supplierFactory';
@@ -13,27 +13,34 @@ export async function findTx(orderId: string) {
 async function setTxStatus(
   orderId: string,
   status: TxStatus,
-  extra: Partial<typeof transactions.$inferInsert> = {}
+  extra: Partial<typeof transactions.$inferInsert> = {},
+  expectedStatus?: TxStatus
 ) {
-  await db
+  const rows = await db
     .update(transactions)
     .set({ status, updatedAt: new Date(), ...extra } as any)
-    .where(eq(transactions.orderId, orderId));
+    .where(expectedStatus
+      ? and(eq(transactions.orderId, orderId), eq(transactions.status, expectedStatus))
+      : eq(transactions.orderId, orderId))
+    .returning({ orderId: transactions.orderId });
+  return rows.length === 1;
 }
 
-async function addUserPoints(userId: string, points: number, earned: number) {
-  await db
-    .update(users)
-    .set({
+async function addUserPoints(userId: string, orderId: string, points: number) {
+  return db.transaction(async (tx) => {
+    const claimed = await tx
+      .update(transactions)
+      .set({ pointsEarned: points } as any)
+      .where(and(eq(transactions.orderId, orderId), eq(transactions.pointsEarned, 0)))
+      .returning({ orderId: transactions.orderId });
+    if (claimed.length !== 1) return false;
+
+    await tx.update(users).set({
       points: sql`${users.points} + ${points}`,
       updatedAt: new Date(),
-    })
-    .where(eq(users.id, userId));
-
-  await db
-    .update(transactions)
-    .set({ pointsEarned: earned } as any)
-    .where(eq(transactions.userId, userId)); // ponytail: scope to orderId when needed
+    }).where(eq(users.id, userId));
+    return true;
+  });
 }
 
 async function auditLog(
@@ -85,7 +92,8 @@ export async function advanceTransaction(
   if (targetStatus === 'SUCCESS') extra.completedAt = now;
 
   // 3. Persist new status
-  await _setStatus(orderId, targetStatus, extra);
+  const transitioned = await _setStatus(orderId, targetStatus, extra, from);
+  if (transitioned === false) throw new Error(`Transaction changed concurrently: ${orderId}`);
   await _audit('STATUS_CHANGE', orderId, { from, to: targetStatus }, null);
 
   // 4. PAID → trigger supplier order automatically
@@ -102,7 +110,7 @@ export async function advanceTransaction(
       await _audit('SUPPLIER_ORDER_CREATED', orderId, { targetStatus: 'PAID' }, orderResp);
     } catch (err: any) {
       await _audit('SUPPLIER_ORDER_FAILED', orderId, null, { error: err.message });
-      // Do NOT revert to PAID — leave as PROCESSING for manual retry
+      // Keep PAID: payment is confirmed, fulfillment remains retryable.
       // ponytail: add retry queue when supplier reliability requires it
     }
   }
@@ -111,8 +119,10 @@ export async function advanceTransaction(
   if (targetStatus === 'SUCCESS' && tx.userId) {
     const earned = calculatePoints(Number(tx.amount));
     if (earned > 0) {
-      await _addPoints(tx.userId, earned, earned);
-      await _audit('POINTS_AWARDED', orderId, null, { userId: tx.userId, points: earned });
+      const awarded = await _addPoints(tx.userId, orderId, earned);
+      if (awarded !== false) {
+        await _audit('POINTS_AWARDED', orderId, null, { userId: tx.userId, points: earned });
+      }
     }
   }
 

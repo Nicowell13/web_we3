@@ -66,6 +66,14 @@ export async function handleDokuWebhook(
     return { skipped: true, reason: 'already_terminal', status: tx.status, orderId };
   }
 
+  if (Number(payload.order.amount) !== Number(tx.amount)) {
+    await _writeAuditTrail('DOKU_WEBHOOK_AMOUNT_MISMATCH', orderId, rawBody, {
+      expectedAmount: tx.amount,
+      receivedAmount: payload.order.amount,
+    }, ipAddress);
+    return { skipped: true, reason: 'amount_mismatch', orderId };
+  }
+
   const newStatus = mapDokuStatus(incomingStatus) as TxStatus;
 
   try {

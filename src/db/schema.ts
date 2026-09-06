@@ -204,6 +204,7 @@ export const userVouchers = pgTable(
   (table) => [
     index('user_vouchers_user_id_idx').on(table.userId),
     index('user_vouchers_is_used_idx').on(table.isUsed),
+    uniqueIndex('user_vouchers_user_voucher_idx').on(table.userId, table.voucherId),
   ]
 );
 

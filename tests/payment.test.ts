@@ -38,9 +38,9 @@ import { buildDokuHeaders, verifyDokuWebhook } from '../src/integrations/doku/cl
 import { handleDokuWebhook } from '../src/integrations/doku/webhook';
 
 // ── Fake DB rows for idempotency tests ───────────────────────────────────────
-const fakeDb: Record<string, { status: string; paidAt: null }> = {
-  'WETRI-PENDING-001': { status: 'PENDING', paidAt: null },
-  'WETRI-SUCCESS-001': { status: 'SUCCESS', paidAt: null },
+const fakeDb: Record<string, { status: string; paidAt: null; amount: string }> = {
+  'WETRI-PENDING-001': { status: 'PENDING', paidAt: null, amount: '25000' },
+  'WETRI-SUCCESS-001': { status: 'SUCCESS', paidAt: null, amount: '25000' },
 };
 const fakeFindTx    = async (orderId: string) => fakeDb[orderId] ?? null;
 const fakeAudit     = async () => {};
@@ -129,6 +129,21 @@ describe('[FEAT-04] DOKU Idempotency Guard: handleDokuWebhook', () => {
     );
     expect(result.skipped).toBe(true);
     expect(result.reason).toBe('order_not_found');
+  });
+
+  it('rejects paid amount different from stored transaction amount', async () => {
+    const payload = {
+      order:       { invoice_number: 'WETRI-PENDING-001', amount: 24000 },
+      transaction: { status: 'SUCCESS', date: '2026-09-01T14:03:00Z' },
+    };
+    const events: string[] = [];
+    const result = await handleDokuWebhook(
+      payload, JSON.stringify(payload), undefined,
+      fakeFindTx, async (event) => { events.push(event); }
+    );
+    expect(result.skipped).toBe(true);
+    expect(result.reason).toBe('amount_mismatch');
+    expect(events).toContain('DOKU_WEBHOOK_AMOUNT_MISMATCH');
   });
 });
 

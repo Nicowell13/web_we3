@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "user_vouchers_user_voucher_idx" ON "user_vouchers" USING btree ("user_id","voucher_id");

@@ -16,11 +16,16 @@ export async function findActiveVoucher(code: string) {
 
 export async function claimVoucher(userId: string, voucherId: string) {
   await db.transaction(async (tx) => {
-    await tx
+    const claimed = await tx
       .update(vouchers)
       .set({ quotaUsed: sql`${vouchers.quotaUsed} + 1` })
-      .where(eq(vouchers.id, voucherId))
-      .returning();
+      .where(and(
+        eq(vouchers.id, voucherId),
+        eq(vouchers.isActive, true),
+        sql`${vouchers.quotaUsed} < ${vouchers.quota}`
+      ))
+      .returning({ id: vouchers.id });
+    if (claimed.length !== 1) throw new Error('Voucher quota exhausted or inactive');
     await tx.insert(userVouchers).values({ userId, voucherId });
   });
 }
@@ -106,18 +111,27 @@ export async function applyVoucher(orderId: string, voucherCode: string, userId:
     }
   }
 
-  if (voucher.pointsRequired > 0) {
-    await db
-      .update(users)
-      .set({ points: sql`${users.points} - ${voucher.pointsRequired}` })
-      .where(eq(users.id, userId));
-  }
+  await db.transaction(async (tx) => {
+    const used = await tx
+      .update(userVouchers)
+      .set({ isUsed: true, usedAt: new Date() })
+      .where(and(
+        eq(userVouchers.userId, userId),
+        eq(userVouchers.voucherId, voucher.id),
+        eq(userVouchers.isUsed, false)
+      ))
+      .returning({ id: userVouchers.id });
+    if (used.length !== 1) throw new Error('Voucher not claimed or already used');
 
-  // Idempotent mark-as-used
-  await db
-    .update(userVouchers)
-    .set({ isUsed: true, usedAt: new Date() })
-    .where(and(eq(userVouchers.userId, userId), eq(userVouchers.voucherId, voucher.id)));
+    if (voucher.pointsRequired > 0) {
+      const debited = await tx
+        .update(users)
+        .set({ points: sql`${users.points} - ${voucher.pointsRequired}` })
+        .where(and(eq(users.id, userId), sql`${users.points} >= ${voucher.pointsRequired}`))
+        .returning({ id: users.id });
+      if (debited.length !== 1) throw new Error('Insufficient loyalty points for voucher');
+    }
+  });
 
   return voucher;
 }

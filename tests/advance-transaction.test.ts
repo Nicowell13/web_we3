@@ -59,7 +59,10 @@ describe('[FEAT-05] advanceTransaction: state machine + supplier + points', () =
       {},
       async () => fakeTx as any,
       noop,
-      async (_uid: string, pts: number) => { pointsAwarded = pts; },
+      async (_uid: string, orderId: string, pts: number) => {
+        expect(orderId).toBe('WETRI-002');
+        pointsAwarded = pts;
+      },
       async (ev: string) => { audited.push(ev); },
       async () => ({}) as any
     );
