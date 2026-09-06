@@ -1,5 +1,5 @@
 import { db } from '../../db';
-import { auditTrails, products } from '../../db/schema';
+import { auditTrails, gamesCatalog, products } from '../../db/schema';
 import { and, desc, eq, ilike, inArray } from 'drizzle-orm';
 
 export function calculatePriceFromMargin(basePrice: number, marginType: 'fixed' | 'percentage', marginValue: number) {
@@ -14,12 +14,13 @@ const columns = {
   supplierProductCode: products.supplierProductCode, brand: products.brand, productType: products.productType,
   marginType: products.marginType, marginValue: products.marginValue, supplierStatus: products.supplierStatus,
   isActive: products.isActive, syncedAt: products.syncedAt, updatedAt: products.updatedAt,
+  category: gamesCatalog.category, groupName: gamesCatalog.name,
 };
 
 export async function listAdminProducts(search?: string, active?: boolean, supplierStatus?: string) {
   const term = search?.trim();
   const status = supplierStatus?.trim();
-  return db.select(columns).from(products).where(and(
+  return db.select(columns).from(products).innerJoin(gamesCatalog, eq(products.gameId, gamesCatalog.id)).where(and(
     term ? ilike(products.denomination, `%${term}%`) : undefined,
     active === undefined ? undefined : eq(products.isActive, active),
     status ? eq(products.supplierStatus, status) : undefined,
