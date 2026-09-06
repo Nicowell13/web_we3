@@ -70,6 +70,9 @@ export default function OldSchoolPage() {
   const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [configs, setConfigs] = useState<SystemConfig[]>([]);
+  const [actionOrders, setActionOrders] = useState<any[]>([]);
+  const [repayingOrderId, setRepayingOrderId] = useState<string | null>(null);
+  const [overrideSkuInput, setOverrideSkuInput] = useState<{ [orderId: string]: string }>({});
   const [loadingData, setLoadingData] = useState(false);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [products, setProducts] = useState<AdminProduct[]>([]);
@@ -135,7 +138,7 @@ export default function OldSchoolPage() {
 
       setAccessState('allowed');
 
-      const [mRes, lRes, cRes, sRes, pRes, vRes, uRes, bRes] = await Promise.all([
+      const [mRes, lRes, cRes, sRes, pRes, vRes, uRes, bRes, oRes] = await Promise.all([
         fetch(`${apiBase}/api/v1/old-school/metrics`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/audit-logs`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/configs`, { headers }),
@@ -144,6 +147,7 @@ export default function OldSchoolPage() {
         fetch(`${apiBase}/api/v1/old-school/vouchers`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/users`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/banners`, { headers }),
+        fetch(`${apiBase}/api/v1/old-school/orders/action-needed`, { headers }),
       ]);
 
       if (mRes.ok) {
@@ -177,6 +181,7 @@ export default function OldSchoolPage() {
       if (vRes.ok) { const v = await vRes.json(); setVouchers(v.vouchers ?? []); }
       if (uRes.ok) { const u = await uRes.json(); setUsers(u.users ?? []); }
       if (bRes.ok) { const b = await bRes.json(); setBanner(b.banner ?? null); }
+      if (oRes.ok) { const o = await oRes.json(); setActionOrders(o.orders ?? []); }
     } catch {
       setAccessState('forbidden');
     } finally {
@@ -732,6 +737,84 @@ export default function OldSchoolPage() {
             })}
           </div>
         </div>
+
+        {/* Action Needed: Failed / Pending Orders Intervention */}
+        <div className="glass-panel p-6 rounded-2xl border border-rose-500/40 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5 text-rose-400" />
+              <h2 className="text-base font-cyber font-bold text-white">Intervensi Transaksi Gagal / Pending</h2>
+            </div>
+            <span className="text-[11px] text-rose-300 font-mono">Perlu Tindakan: {actionOrders.length}</span>
+          </div>
+
+          {actionOrders.length === 0 ? (
+            <p className="text-xs text-slate-500 font-mono">Semua transaksi sukses atau tidak ada transaksi bermasalah.</p>
+          ) : (
+            <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+              {actionOrders.map(ord => {
+                const lastError = ord.metadata?.lastSupplierError?.message || ord.metadata?.lastAdminRepay?.lastError || 'Supplier response pending/gagal';
+                const currentOverrideSku = overrideSkuInput[ord.orderId] ?? '';
+
+                return (
+                  <div key={ord.orderId} className="p-3.5 rounded-xl bg-surface border border-rose-500/30 space-y-2.5 text-xs">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-surface-border pb-2">
+                      <div>
+                        <span className="font-mono font-bold text-white text-sm">{ord.orderId}</span>
+                        <span className="ml-2 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                          {ord.status}
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-primary font-mono font-bold">
+                        Rp {Number(ord.amount).toLocaleString('id-ID')}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-300">
+                      <p>Produk: <strong className="text-white">{ord.productName || ord.denomination}</strong> (SKU Asli: <code className="text-primary">{ord.supplierProductCode}</code>)</p>
+                      <p>Target: <code className="text-emerald-400">{ord.targetUserId}{ord.targetServerId ? ` (${ord.targetServerId})` : ''}</code></p>
+                    </div>
+
+                    <div className="p-2 rounded bg-black/50 border border-rose-950 text-[11px] text-rose-300 font-mono">
+                      Detail Error: {lastError}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                      <input
+                        type="text"
+                        placeholder={`Ganti SKU alternatif (kosongkan jika tetap: ${ord.supplierProductCode})`}
+                        value={currentOverrideSku}
+                        onChange={(e) => setOverrideSkuInput({ ...overrideSkuInput, [ord.orderId]: e.target.value })}
+                        className="flex-1 bg-black/40 border border-surface-border rounded px-3 py-1.5 text-xs text-white font-mono focus:border-primary focus:outline-none"
+                      />
+                      <button
+                        disabled={repayingOrderId === ord.orderId}
+                        onClick={async () => {
+                          setRepayingOrderId(ord.orderId);
+                          try {
+                            const res = await adminAction(`/api/v1/old-school/orders/${ord.orderId}/repay`, 'POST', {
+                              overrideSupplierSku: currentOverrideSku.trim() || undefined,
+                              adminNotes: 'Intervensi manual dari admin panel',
+                            });
+                            if (res) {
+                              setOverrideSkuInput(prev => ({ ...prev, [ord.orderId]: '' }));
+                            }
+                          } finally {
+                            setRepayingOrderId(null);
+                          }
+                        }}
+                        className="px-4 py-1.5 rounded bg-primary text-black font-cyber font-bold text-xs hover:bg-white transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+                      >
+                        {repayingOrderId === ord.orderId ? 'Memproses Repay...' : currentOverrideSku.trim() ? 'Pindah SKU & Repay' : 'Repay SKU Asli'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         <div className="glass-panel p-6 rounded-2xl border border-surface-border space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-cyber font-bold text-white">Users & Fraud Control</h2>

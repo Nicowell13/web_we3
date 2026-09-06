@@ -7,6 +7,7 @@ import { desc, eq, ilike } from 'drizzle-orm';
 import { syncDigiflazzProducts } from './product-sync.service';
 import { bulkUpdateProducts, calculatePriceFromMargin, getProductSummary, listAdminProducts, updateAdminProduct } from './product-admin.service';
 import { createAdminVoucher, listAdminVouchers, updateAdminVoucher } from './voucher-admin.service';
+import { listFailedOrActionOrders, repayAdminOrder } from './order-admin.service';
 
 /**
  * Old-school admin panel API – admin‑only protected.
@@ -96,6 +97,19 @@ export const adminRoutes = new Elysia({ prefix: '/api/v1/old-school' })
   .get('/configs', async () => {
     const cfg = await getSystemConfigs();
     return { ok: true, configs: cfg };
+  })
+  .get('/orders/action-needed', async () => {
+    return { ok: true, orders: await listFailedOrActionOrders() };
+  })
+  .post('/orders/:orderId/repay', async ({ params, body, set }) => {
+    const payload = (body as { overrideSupplierSku?: string; adminNotes?: string }) || {};
+    try {
+      const result = await repayAdminOrder(params.orderId, payload);
+      return result;
+    } catch (err: any) {
+      set.status = 400;
+      return { ok: false, message: err?.message || 'Repay order failed' };
+    }
   })
   .post('/configs', async ({ body }) => {
     const { key, value } = body as { key: string; value: string };
