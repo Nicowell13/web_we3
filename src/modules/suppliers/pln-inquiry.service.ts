@@ -60,9 +60,16 @@ export async function inquirePlnCustomer(customerNo: string, supplier?: TopUpPro
     const status = String(data?.status ?? '').toLowerCase();
     const rc = String(data?.rc ?? '');
     const returnedCustomerNo = String(data?.customer_no ?? '');
+    const returnedMeterNo = String(data?.meter_no ?? '');
+    const returnedSubscriberId = String(data?.subscriber_id ?? '');
     const name = String(data?.name ?? '').trim();
 
-    if (status !== 'sukses' || rc !== '00' || !name || returnedCustomerNo !== cleanNo) {
+    const matchesRequestedNo =
+      returnedCustomerNo === cleanNo ||
+      returnedMeterNo === cleanNo ||
+      returnedSubscriberId === cleanNo;
+
+    if (status !== 'sukses' || rc !== '00' || !name || !matchesRequestedNo) {
       return {
         ok: false,
         customerNo: cleanNo,
