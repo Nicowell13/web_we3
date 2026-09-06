@@ -7,6 +7,7 @@ import {
   Smartphone,
   Zap,
   Gamepad2,
+  Globe,
   CheckCircle2,
   AlertCircle,
   Sparkles,
@@ -62,7 +63,7 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
   const router = useRouter();
   const { user } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'pulsa' | 'data' | 'pln' | 'game'>('pulsa');
+  const [activeTab, setActiveTab] = useState<'pulsa' | 'data' | 'pln' | 'game'>('game');
 
   // Pulsa & Data states
   const [phone, setPhone] = useState('');
@@ -298,10 +299,10 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
       {/* Top Tabs */}
       <div className="grid grid-cols-4 gap-2 p-1 rounded-xl bg-black/40 border border-surface-border">
         {[
-          { id: 'pulsa', label: 'Pulsa', icon: Smartphone },
-          { id: 'data', label: 'Paket Data', icon: Zap },
-          { id: 'pln', label: 'Token PLN', icon: Zap },
           { id: 'game', label: 'Top-up Game', icon: Gamepad2 },
+          { id: 'data', label: 'Paket Data', icon: Globe },
+          { id: 'pln', label: 'Token PLN', icon: Zap },
+          { id: 'pulsa', label: 'Pulsa', icon: Smartphone },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -509,42 +510,54 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
             <p className="text-xs text-slate-400">Belum ada denom aktif untuk pilihan ini.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 min-[380px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {filteredProducts.map((p, idx) => {
               const isSelected = selectedProductId === p.id;
               const sellPriceNum = Number(p.sellPrice);
               const fakeOriginalPrice = Math.ceil(sellPriceNum * 1.12);
               const promoLabels = ['🔥 PROMO', '⚡ INSTANT', '💎 HEMAT'];
               const badge = promoLabels[idx % promoLabels.length];
+              const detailText = p.denomination.replace(/\s+/g, ' ').trim();
+              const productLabel = (p.name || p.gameName || p.gameCategory || 'Produk WETRI').replace(detailText, '').trim();
 
               return (
                 <div
                   key={p.id}
                   onClick={() => setSelectedProductId(p.id)}
-                  className={`p-3 rounded-xl border cursor-pointer transition-all duration-200 relative group flex flex-col justify-between ${
+                  className={`min-h-[138px] p-3.5 rounded-xl border cursor-pointer transition-all duration-200 group flex flex-col justify-between touch-manipulation ${
                     isSelected
                       ? 'bg-primary/10 border-primary shadow-neon-cyan scale-[1.02]'
                       : 'bg-surface/60 border-surface-border hover:border-primary/50 hover:bg-surface'
                   }`}
                 >
-                  <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[9px] font-bold bg-secondary/20 text-secondary border border-secondary/40 font-mono">
-                    {badge}
-                  </div>
-
-                  <div className="pr-12">
-                    <p className="font-cyber font-bold text-white text-xs line-clamp-1 group-hover:text-primary transition-colors">
-                      {p.denomination}
-                    </p>
-                    <p className="text-[10px] text-slate-400 font-mono line-clamp-1">{p.name || p.gameName}</p>
-                  </div>
-
-                  <div className="mt-3 pt-2 border-t border-surface-border/50">
-                    <span className="text-[10px] text-slate-500 line-through block">
-                      Rp {fakeOriginalPrice.toLocaleString('id-ID')}
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <span className="px-2 py-1 rounded-lg text-[9px] font-bold bg-secondary/20 text-secondary border border-secondary/40 font-mono shrink-0">
+                      {badge}
                     </span>
-                    <p className="text-primary font-mono font-bold text-xs">
-                      Rp {sellPriceNum.toLocaleString('id-ID')}
+                    {isSelected && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="font-cyber font-black text-white text-sm sm:text-[13px] leading-snug break-words group-hover:text-primary transition-colors">
+                      {detailText}
                     </p>
+                    <p className="text-[11px] text-slate-300 leading-snug break-words">
+                      {productLabel || `${activeTab === 'game' ? 'Top-up game' : activeTab === 'data' ? 'Paket internet' : activeTab === 'pln' ? 'Token listrik' : 'Pulsa reguler'} siap kirim`}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t border-surface-border/50 flex items-end justify-between gap-2">
+                    <div>
+                      <span className="text-[10px] text-slate-500 line-through block">
+                        Rp {fakeOriginalPrice.toLocaleString('id-ID')}
+                      </span>
+                      <p className="text-primary font-mono font-black text-sm">
+                        Rp {sellPriceNum.toLocaleString('id-ID')}
+                      </p>
+                    </div>
+                    <span className="px-2 py-1 rounded-md bg-black/40 border border-primary/20 text-[9px] text-primary font-mono">
+                      Detail jelas
+                    </span>
                   </div>
                 </div>
               );
