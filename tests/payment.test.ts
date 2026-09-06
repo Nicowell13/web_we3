@@ -131,6 +131,19 @@ describe('[FEAT-04] DOKU Idempotency Guard: handleDokuWebhook', () => {
     expect(result.reason).toBe('order_not_found');
   });
 
+  it('maps failed payment without triggering paid fulfillment', async () => {
+    const payload = {
+      order:       { invoice_number: 'WETRI-PENDING-001', amount: 25000 },
+      transaction: { status: 'FAILED', date: '2026-09-01T14:03:00Z' },
+    };
+    const result = await handleDokuWebhook(
+      payload, JSON.stringify(payload), undefined,
+      fakeFindTx, fakeAudit
+    );
+    expect(result.processed).toBe(true);
+    expect(result.newStatus).toBe('FAILED');
+  });
+
   it('rejects paid amount different from stored transaction amount', async () => {
     const payload = {
       order:       { invoice_number: 'WETRI-PENDING-001', amount: 24000 },

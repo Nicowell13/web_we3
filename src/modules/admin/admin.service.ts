@@ -1,6 +1,6 @@
 import { db } from '../../db';
 import { transactions, auditTrails, systemConfigs } from '../../db/schema';
-import { eq, desc, sql } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 
 /** Metrics for admin dashboard */
 export async function getAdminMetrics() {
@@ -25,6 +25,25 @@ export async function getAdminMetrics() {
     });
 
   return { totalTransactions: Number(total), totalSales: sales, statusCounts };
+}
+
+/** Paid/pending orders needing operator reconciliation. */
+export async function getPaymentReconciliation(olderThanMinutes = 15) {
+  const cutoff = new Date(Date.now() - Math.max(1, olderThanMinutes) * 60_000);
+  return db
+    .select({
+      orderId: transactions.orderId,
+      status: transactions.status,
+      amount: transactions.amount,
+      paymentReference: transactions.paymentReference,
+      supplierReference: transactions.supplierReference,
+      createdAt: transactions.createdAt,
+      updatedAt: transactions.updatedAt,
+    })
+    .from(transactions)
+    .where(sql`${transactions.status} in ('PENDING', 'PAID', 'PROCESSING') and ${transactions.updatedAt} < ${cutoff}`)
+    .orderBy(desc(transactions.updatedAt))
+    .limit(100);
 }
 
 /** Recent audit logs */

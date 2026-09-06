@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia';
 import { requireRole } from '../../middleware/auth';
-import { getAdminMetrics, getRecentAuditLogs, getSystemConfigs, updateSystemConfig } from './admin.service';
+import { getAdminMetrics, getPaymentReconciliation, getRecentAuditLogs, getSystemConfigs, updateSystemConfig } from './admin.service';
 import { db } from '../../db';
 import { auditTrails, products, users } from '../../db/schema';
 import { desc, eq, ilike } from 'drizzle-orm';
@@ -87,6 +87,11 @@ export const adminRoutes = new Elysia({ prefix: '/api/v1/old-school' })
   .get('/audit-logs', async () => {
     const logs = await getRecentAuditLogs();
     return { ok: true, logs };
+  })
+  .get('/payments/reconciliation', async ({ query }) => {
+    const raw = Number((query as { olderThanMinutes?: string }).olderThanMinutes ?? 15);
+    const olderThanMinutes = Number.isFinite(raw) ? Math.min(Math.max(raw, 1), 10_080) : 15;
+    return { ok: true, transactions: await getPaymentReconciliation(olderThanMinutes) };
   })
   .get('/configs', async () => {
     const cfg = await getSystemConfigs();

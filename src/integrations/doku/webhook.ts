@@ -20,6 +20,15 @@ export type DokuWebhookPayload = {
 
 const TERMINAL_STATUSES = new Set(['SUCCESS', 'FAILED', 'REFUNDED']);
 
+function auditPayload(payload: DokuWebhookPayload) {
+  return JSON.stringify({
+    order: payload.order,
+    transaction: payload.transaction,
+    service: payload.service,
+    channel: payload.channel,
+  });
+}
+
 async function findTx(orderId: string) {
   return db.query.transactions.findFirst({ where: eq(transactions.orderId, orderId) });
 }
@@ -53,21 +62,22 @@ export async function handleDokuWebhook(
 ) {
   const orderId        = payload.order.invoice_number;
   const incomingStatus = payload.transaction.status.toUpperCase();
+  const safeBody        = auditPayload(payload);
 
   const tx = await _findTx(orderId);
 
   if (!tx) {
-    await _writeAuditTrail('DOKU_WEBHOOK_UNKNOWN_ORDER', orderId, rawBody, null, ipAddress);
+    await _writeAuditTrail('DOKU_WEBHOOK_UNKNOWN_ORDER', orderId, safeBody, null, ipAddress);
     return { skipped: true, reason: 'order_not_found', orderId };
   }
 
   if (TERMINAL_STATUSES.has(tx.status)) {
-    await _writeAuditTrail('DOKU_WEBHOOK_DUPLICATE', orderId, rawBody, { existingStatus: tx.status }, ipAddress);
+    await _writeAuditTrail('DOKU_WEBHOOK_DUPLICATE', orderId, safeBody, { existingStatus: tx.status }, ipAddress);
     return { skipped: true, reason: 'already_terminal', status: tx.status, orderId };
   }
 
   if (Number(payload.order.amount) !== Number(tx.amount)) {
-    await _writeAuditTrail('DOKU_WEBHOOK_AMOUNT_MISMATCH', orderId, rawBody, {
+    await _writeAuditTrail('DOKU_WEBHOOK_AMOUNT_MISMATCH', orderId, safeBody, {
       expectedAmount: tx.amount,
       receivedAmount: payload.order.amount,
     }, ipAddress);
@@ -79,11 +89,11 @@ export async function handleDokuWebhook(
   try {
     await advanceTransaction(orderId, newStatus);
   } catch {
-    await _writeAuditTrail('DOKU_WEBHOOK_INVALID_TRANSITION', orderId, rawBody, { from: tx.status, to: newStatus }, ipAddress);
+    await _writeAuditTrail('DOKU_WEBHOOK_INVALID_TRANSITION', orderId, safeBody, { from: tx.status, to: newStatus }, ipAddress);
     return { skipped: true, reason: 'invalid_transition', orderId };
   }
 
-  await _writeAuditTrail('DOKU_WEBHOOK', orderId, rawBody, { newStatus }, ipAddress);
+  await _writeAuditTrail('DOKU_WEBHOOK', orderId, safeBody, { newStatus }, ipAddress);
   return { processed: true, orderId, newStatus };
 }
 
