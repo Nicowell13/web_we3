@@ -45,7 +45,7 @@ describe('[FEAT-05] advanceTransaction: state machine + supplier + points', () =
     expect(result.from).toBe('PENDING');
     expect(result.to).toBe('PAID');
     expect(audited).toContain('STATUS_CHANGE');
-    expect(audited).toContain('SUPPLIER_ORDER_CREATED');
+    expect(audited).toContain('SUPPLIER_RETRY_EXHAUSTED');
     expect(updated).toContain('PROCESSING');
     expect(supplierRef).toBe('WETRI-001');
   });
@@ -91,6 +91,71 @@ describe('[FEAT-05] advanceTransaction: state machine + supplier + points', () =
     );
 
     expect(updated).toContain('SUCCESS');
+  });
+
+  it('retries up to 2x on Pending and succeeds when second attempt returns Sukses', async () => {
+    let callCount = 0;
+    const updated: string[] = [];
+    const audited: string[] = [];
+
+    const mockSupplier = {
+      createOrder: async () => {
+        callCount++;
+        if (callCount === 1) return { status: 'Pending', ref_id: 'DGFZ-P1' };
+        return { status: 'Sukses', ref_id: 'DGFZ-P1', sn: 'SN-RETRY-OK' };
+      },
+    };
+
+    const fakeTx = {
+      orderId: 'WETRI-RETRY-OK', status: 'PENDING', userId: 'u1', amount: '25000',
+      targetUserId: '089612345678', supplierProductCode: 'TRI25',
+    };
+
+    await advanceTransaction(
+      fakeTx.orderId, 'PAID', {}, async () => fakeTx as any,
+      async (_id: string, status: string) => { updated.push(status); }, noop,
+      async (ev: string) => { audited.push(ev); },
+      async () => mockSupplier as any, async () => false
+    );
+
+    expect(callCount).toBe(2);
+    expect(updated).toContain('SUCCESS');
+    expect(audited).toContain('SUPPLIER_ORDER_CREATED');
+  });
+
+  it('exhausts 3 attempts on persistent Pending/error and sets needsAdminAction flag', async () => {
+    let callCount = 0;
+    let finalMetadata: any = null;
+    const updated: string[] = [];
+    const audited: string[] = [];
+
+    const mockSupplier = {
+      createOrder: async () => {
+        callCount++;
+        return { status: 'Pending', message: 'Stok supplier sedang kosong' };
+      },
+    };
+
+    const fakeTx = {
+      orderId: 'WETRI-EXHAUSTED', status: 'PENDING', userId: 'u1', amount: '50000',
+      targetUserId: '08123456789', supplierProductCode: 'TSEL50',
+    };
+
+    await advanceTransaction(
+      fakeTx.orderId, 'PAID', {}, async () => fakeTx as any,
+      async (_id: string, status: string, extra: any) => {
+        updated.push(status);
+        if (extra?.metadata) finalMetadata = extra.metadata;
+      }, noop,
+      async (ev: string) => { audited.push(ev); },
+      async () => mockSupplier as any, async () => false
+    );
+
+    expect(callCount).toBe(3);
+    expect(updated).toContain('PROCESSING');
+    expect(audited).toContain('SUPPLIER_RETRY_EXHAUSTED');
+    expect(finalMetadata?.needsAdminAction).toBe(true);
+    expect(finalMetadata?.lastSupplierError?.message).toBe('Stok supplier sedang kosong');
   });
 
   it('PROCESSING â†’ SUCCESS awards correct points (Rp 86.000 â†’ 86 pts)', async () => {

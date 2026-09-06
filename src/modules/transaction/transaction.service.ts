@@ -111,38 +111,98 @@ export async function advanceTransaction(
   if (transitioned === false) throw new Error(`Transaction changed concurrently: ${orderId}`);
   await _audit('STATUS_CHANGE', orderId, { from, to: targetStatus }, null);
 
-  // 4. PAID → trigger supplier order automatically
+  // 4. PAID → trigger supplier order automatically with up to 2 retries
   if (targetStatus === 'PAID') {
-    try {
-      const supplier  = await _getSupplier();
-      const supplierProductCode = (tx as any).supplierProductCode;
-      if (!supplierProductCode) throw new Error('Supplier product code missing');
-      const customerNo = tx.targetServerId ? `${tx.targetUserId}${tx.targetServerId}` : tx.targetUserId;
-      const orderResp = await supplier.createOrder(
-        supplierProductCode,
-        customerNo,
-        Number(tx.amount),
-        orderId
-      );
-      const supplierReference = orderResp?.ref_id ?? orderResp?.data?.ref_id ?? orderId;
-      const supplierSn = orderResp?.sn ?? orderResp?.data?.sn ?? null;
-      const supplierStatus = String(orderResp?.status ?? orderResp?.data?.status ?? '').toLowerCase();
-      const fulfillmentStatus: TxStatus = supplierStatus === 'sukses' ? 'SUCCESS' : supplierStatus === 'gagal' ? 'FAILED' : 'PROCESSING';
-      await _setStatus(orderId, fulfillmentStatus, {
-        supplierReference,
-        supplierSn,
-        ...(fulfillmentStatus === 'SUCCESS' ? { completedAt: new Date() } : {}),
-      });
-      await _audit('SUPPLIER_ORDER_CREATED', orderId, { targetStatus: 'PAID' }, orderResp);
-      if (fulfillmentStatus === 'SUCCESS' && tx.userId) {
-        const earned = calculatePoints(Number(tx.amount));
-        if (earned > 0) await _addPoints(tx.userId, orderId, earned);
-        await _rewardReferral(tx.userId, orderId);
+    let finalFulfillmentStatus: TxStatus = 'PROCESSING';
+    let finalResp: any = null;
+    let lastErrorMsg: string | null = null;
+    let supplierRef: string = orderId;
+    let supplierSn: string | null = null;
+
+    const supplier = await _getSupplier().catch(() => null);
+    const supplierProductCode = (tx as any).supplierProductCode;
+    const customerNo = tx.targetServerId ? `${tx.targetUserId}${tx.targetServerId}` : tx.targetUserId;
+
+    if (!supplier || !supplierProductCode) {
+      lastErrorMsg = !supplier ? 'Supplier adapter not available' : 'Supplier product code missing';
+      await _setStatus(orderId, 'PROCESSING', {
+        metadata: {
+          lastSupplierError: { message: lastErrorMsg, timestamp: new Date().toISOString() },
+          needsAdminAction: true,
+        },
+      } as any);
+      await _audit('SUPPLIER_ORDER_FAILED', orderId, null, { error: lastErrorMsg });
+    } else {
+      const maxAttempts = 3; // 1 initial + 2 retries
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const resp = await supplier.createOrder(
+            supplierProductCode,
+            customerNo,
+            Number(tx.amount),
+            orderId
+          );
+          finalResp = resp;
+          supplierRef = resp?.ref_id ?? resp?.data?.ref_id ?? orderId;
+          supplierSn = resp?.sn ?? resp?.data?.sn ?? null;
+          const statusStr = String(resp?.status ?? resp?.data?.status ?? '').toLowerCase();
+
+          if (statusStr === 'sukses') {
+            finalFulfillmentStatus = 'SUCCESS';
+            lastErrorMsg = null;
+            break; // Finished successfully
+          } else if (statusStr === 'gagal') {
+            finalFulfillmentStatus = 'FAILED';
+            lastErrorMsg = resp?.message ?? resp?.data?.message ?? 'Digiflazz order failed';
+            break; // Terminal rejection by supplier, no transient retry
+          } else {
+            // Pending status from supplier
+            finalFulfillmentStatus = 'PROCESSING';
+            lastErrorMsg = resp?.message ?? resp?.data?.message ?? 'Supplier transaction pending';
+            if (attempt < maxAttempts) {
+              // Wait 100ms in unit tests, or small backoff
+              await new Promise((r) => setTimeout(r, 100));
+            }
+          }
+        } catch (err: any) {
+          lastErrorMsg = err?.message || 'Supplier connection error';
+          finalFulfillmentStatus = 'PROCESSING';
+          if (attempt < maxAttempts) {
+            await new Promise((r) => setTimeout(r, 100));
+          }
+        }
       }
-    } catch (err: any) {
-      await _audit('SUPPLIER_ORDER_FAILED', orderId, null, { error: err.message });
-      // Keep PAID: payment is confirmed, fulfillment remains retryable.
-      // ponytail: add retry queue when supplier reliability requires it
+
+      const isSuccess = finalFulfillmentStatus === 'SUCCESS';
+      const isFailed = finalFulfillmentStatus === 'FAILED';
+
+      const metadataUpdate: Record<string, unknown> = {};
+      if (!isSuccess) {
+        metadataUpdate.lastSupplierError = {
+          message: lastErrorMsg,
+          rawResponse: finalResp,
+          timestamp: new Date().toISOString(),
+        };
+        metadataUpdate.needsAdminAction = true;
+      }
+
+      await _setStatus(orderId, finalFulfillmentStatus, {
+        supplierReference: supplierRef,
+        supplierSn,
+        ...(isSuccess ? { completedAt: new Date() } : {}),
+        ...(Object.keys(metadataUpdate).length > 0 ? { metadata: metadataUpdate } : {}),
+      } as any);
+
+      if (isSuccess) {
+        await _audit('SUPPLIER_ORDER_CREATED', orderId, { targetStatus: 'PAID' }, finalResp);
+        if (tx.userId) {
+          const earned = calculatePoints(Number(tx.amount));
+          if (earned > 0) await _addPoints(tx.userId, orderId, earned);
+          await _rewardReferral(tx.userId, orderId);
+        }
+      } else {
+        await _audit('SUPPLIER_RETRY_EXHAUSTED', orderId, { attempts: maxAttempts }, { error: lastErrorMsg });
+      }
     }
   }
 
