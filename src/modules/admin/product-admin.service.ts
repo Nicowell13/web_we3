@@ -8,14 +8,15 @@ export function calculatePriceFromMargin(basePrice: number, marginType: 'fixed' 
   return Number((basePrice + (marginType === 'percentage' ? basePrice * marginValue / 100 : marginValue)).toFixed(2));
 }
 
-const columns = {
+const productColumns = {
   id: products.id, gameId: products.gameId, sku: products.sku, denomination: products.denomination,
   basePrice: products.basePrice, sellPrice: products.sellPrice, supplierCode: products.supplierCode,
   supplierProductCode: products.supplierProductCode, brand: products.brand, productType: products.productType,
   marginType: products.marginType, marginValue: products.marginValue, supplierStatus: products.supplierStatus,
   isActive: products.isActive, syncedAt: products.syncedAt, updatedAt: products.updatedAt,
-  category: gamesCatalog.category, groupName: gamesCatalog.name,
 };
+
+const columns = { ...productColumns, category: gamesCatalog.category, groupName: gamesCatalog.name };
 
 export async function getProductSummary() {
   const rows = await db.select({ category: gamesCatalog.category, groupName: gamesCatalog.name, isActive: products.isActive, syncedAt: products.syncedAt }).from(products).innerJoin(gamesCatalog, eq(products.gameId, gamesCatalog.id));
@@ -51,7 +52,8 @@ export async function listAdminProducts(search?: string, active?: boolean, suppl
 export async function updateAdminProduct(id: string, patch: { isActive?: boolean; sellPrice?: string; marginType?: 'fixed' | 'percentage' | null; marginValue?: string | null }) {
   const current = await db.query.products.findFirst({ where: eq(products.id, id), columns: { id: true, basePrice: true } });
   if (!current) return null;
-  const [updated] = await db.update(products).set({ ...patch, updatedAt: new Date() }).where(eq(products.id, id)).returning(columns);
+  await db.update(products).set({ ...patch, updatedAt: new Date() }).where(eq(products.id, id)).returning(productColumns);
+  const [updated] = await db.select(columns).from(products).innerJoin(gamesCatalog, eq(products.gameId, gamesCatalog.id)).where(eq(products.id, id)).limit(1);
   await db.insert(auditTrails).values({ eventType: 'PRODUCT_CHANGE', referenceId: id, rawRequest: patch });
   return updated;
 }
