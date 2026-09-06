@@ -94,6 +94,13 @@ export default function OldSchoolPage() {
   const [showAddVoucher, setShowAddVoucher] = useState(false);
   const [createVoucherType, setCreateVoucherType] = useState<'new_user' | 'promo' | 'loyalty_points'>('promo');
 
+  // Bulk Product Matrix state
+  const [bulkScope, setBulkScope] = useState<'all' | 'category' | 'gameId'>('all');
+  const [bulkTarget, setBulkTarget] = useState<string>('Game');
+  const [bulkMarginType, setBulkMarginType] = useState<'percentage' | 'fixed'>('percentage');
+  const [bulkMarginValue, setBulkMarginValue] = useState<string>('5');
+  const [isProcessingBulk, setIsProcessingBulk] = useState(false);
+
   // Helper date states for Create Voucher
   const now = new Date();
   const [startDay, setStartDay] = useState(now.getDate());
@@ -369,12 +376,192 @@ export default function OldSchoolPage() {
         </div>
       </div>}
 
-      <div className="glass-panel p-6 rounded-2xl border border-surface-border space-y-4">
-        <div className="flex items-center justify-between">
-          <div><h2 className="text-base font-cyber font-bold text-white">Products & Digiflazz</h2>{productSummary && <p className="text-[10px] text-slate-400 mt-1">{productSummary.totalProducts} produk • {productSummary.activeProducts} aktif • {productSummary.categories?.map((c: any) => `${c.name}: ${c.count}`).join(' • ')}</p>}</div>
-          <button disabled={syncingProducts} onClick={async () => { setSyncingProducts(true); try { await adminAction('/api/v1/old-school/suppliers/digiflazz/sync-products', 'POST'); } finally { setSyncingProducts(false); } }} className="px-3 py-1.5 rounded bg-primary/20 border border-primary/40 text-primary text-xs font-semibold hover:bg-primary hover:text-black disabled:opacity-50">
-            {syncingProducts ? 'Syncing…' : 'Sync Digiflazz'}
+      <div className="glass-panel p-6 rounded-2xl border border-surface-border space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-border pb-4">
+          <div>
+            <h2 className="text-base font-cyber font-bold text-white flex items-center gap-2">
+              <Database className="w-5 h-5 text-primary" />
+              Kontrol Masal Produk & Dynamic Margin Matrix
+            </h2>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Auto-sync Digiflazz berjalan tiap pukul 00:00 WIB. Perubahan modal supplier otomatis mengkalkulasi ulang harga jual untuk margin persentase.
+            </p>
+          </div>
+          <button
+            disabled={syncingProducts}
+            onClick={async () => {
+              setSyncingProducts(true);
+              try {
+                const res = await adminAction('/api/v1/old-school/products/sync-now', 'POST');
+                if (res) setActionMessage(`Sync selesai! ${res.updatedCount || 0} diupdate, ${res.recalculatedCount || 0} harga dikalkulasi ulang.`);
+              } finally {
+                setSyncingProducts(false);
+              }
+            }}
+            className="px-4 py-2 rounded-xl bg-primary/20 border border-primary/40 text-primary text-xs font-cyber font-bold hover:bg-primary hover:text-black transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-neon-cyan"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${syncingProducts ? 'animate-spin' : ''}`} />
+            {syncingProducts ? 'Menyinkronkan...' : 'Sync Digiflazz Sekarang (00:00 WIB Auto)'}
           </button>
+        </div>
+
+        {/* Matrix Panel Controls */}
+        <div className="p-4 rounded-xl bg-surface border border-surface-border space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="text-[10px] text-slate-400 font-semibold block mb-1">1. Cakupan Aksi Masal (Scope)</label>
+              <select
+                value={bulkScope}
+                onChange={(e) => setBulkScope(e.target.value as any)}
+                className="w-full bg-black/40 border border-surface-border rounded-lg p-2 text-xs text-white font-mono focus:border-primary focus:outline-none"
+              >
+                <option value="all">Semua Produk Katalog</option>
+                <option value="category">Berdasarkan Kategori</option>
+                <option value="gameId">Berdasarkan Game / Provider ID</option>
+              </select>
+            </div>
+
+            {bulkScope !== 'all' && (
+              <div>
+                <label className="text-[10px] text-slate-400 font-semibold block mb-1">2. Pilih Target {bulkScope === 'category' ? 'Kategori' : 'Game / Provider'}</label>
+                {bulkScope === 'category' ? (
+                  <select
+                    value={bulkTarget}
+                    onChange={(e) => setBulkTarget(e.target.value)}
+                    className="w-full bg-black/40 border border-surface-border rounded-lg p-2 text-xs text-white font-mono focus:border-primary focus:outline-none"
+                  >
+                    {['Game', 'Pulsa', 'Data', 'PLN', 'E-Wallet', 'Voucher'].map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="e.g. mobile-legends, free-fire, telkomsel"
+                    value={bulkTarget}
+                    onChange={(e) => setBulkTarget(e.target.value)}
+                    className="w-full bg-black/40 border border-surface-border rounded-lg p-2 text-xs text-white font-mono focus:border-primary focus:outline-none"
+                  />
+                )}
+              </div>
+            )}
+
+            <div>
+              <label className="text-[10px] text-slate-400 font-semibold block mb-1">Aktivasi Masal di UI</label>
+              <div className="flex gap-2">
+                <button
+                  disabled={isProcessingBulk}
+                  onClick={async () => {
+                    setIsProcessingBulk(true);
+                    try {
+                      await adminAction('/api/v1/old-school/products/bulk-status', 'POST', {
+                        isActive: true,
+                        scope: bulkScope,
+                        target: bulkScope === 'all' ? undefined : bulkTarget,
+                      });
+                    } finally {
+                      setIsProcessingBulk(false);
+                    }
+                  }}
+                  className="flex-1 px-3 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-bold hover:bg-emerald-500 hover:text-black transition-all disabled:opacity-50"
+                >
+                  Aktifkan Semua
+                </button>
+                <button
+                  disabled={isProcessingBulk}
+                  onClick={async () => {
+                    setIsProcessingBulk(true);
+                    try {
+                      await adminAction('/api/v1/old-school/products/bulk-status', 'POST', {
+                        isActive: false,
+                        scope: bulkScope,
+                        target: bulkScope === 'all' ? undefined : bulkTarget,
+                      });
+                    } finally {
+                      setIsProcessingBulk(false);
+                    }
+                  }}
+                  className="flex-1 px-3 py-2 rounded-lg bg-rose-500/20 border border-rose-500/40 text-rose-400 text-xs font-bold hover:bg-rose-500 hover:text-white transition-all disabled:opacity-50"
+                >
+                  Nonaktifkan Semua
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Bulk Margin Matrix Configurator */}
+          <div className="p-3.5 rounded-lg bg-black/40 border border-primary/30 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <span className="text-xs font-cyber font-bold text-primary">Pengaturan Profit Margin Masal</span>
+              <div className="flex items-center gap-4 text-xs">
+                <label className="flex items-center gap-1.5 cursor-pointer text-slate-300">
+                  <input
+                    type="radio"
+                    name="bulkMarginType"
+                    checked={bulkMarginType === 'percentage'}
+                    onChange={() => setBulkMarginType('percentage')}
+                    className="text-primary"
+                  />
+                  Persentase (%)
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer text-slate-300">
+                  <input
+                    type="radio"
+                    name="bulkMarginType"
+                    checked={bulkMarginType === 'fixed'}
+                    onChange={() => setBulkMarginType('fixed')}
+                    className="text-primary"
+                  />
+                  Nominal Tetap (Rp)
+                </label>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <div className="w-full sm:w-64">
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={bulkMarginValue}
+                  onChange={(e) => setBulkMarginValue(e.target.value)}
+                  placeholder={bulkMarginType === 'percentage' ? 'e.g. 5.5 (%)' : 'e.g. 2000 (Rp)'}
+                  className="w-full bg-surface border border-surface-border rounded-lg p-2 text-xs text-white font-mono focus:border-primary focus:outline-none"
+                />
+              </div>
+
+              <div className="flex-1 text-[11px] text-slate-300 font-mono">
+                Preview: Modal Rp 10.000 → Jual <strong className="text-primary">
+                  Rp {bulkMarginType === 'percentage'
+                    ? Math.ceil(10000 * (1 + Number(bulkMarginValue || 0) / 100)).toLocaleString('id-ID')
+                    : Math.ceil(10000 + Number(bulkMarginValue || 0)).toLocaleString('id-ID')}
+                </strong> ({bulkMarginType === 'percentage' ? `+${bulkMarginValue}%` : `+Rp ${Number(bulkMarginValue).toLocaleString('id-ID')}`})
+              </div>
+
+              <button
+                disabled={isProcessingBulk || Number(bulkMarginValue) < 0}
+                onClick={async () => {
+                  setIsProcessingBulk(true);
+                  try {
+                    await adminAction('/api/v1/old-school/products/bulk-margin', 'POST', {
+                      marginType: bulkMarginType,
+                      marginValue: Number(bulkMarginValue),
+                      scope: bulkScope,
+                      target: bulkScope === 'all' ? undefined : bulkTarget,
+                    });
+                  } finally {
+                    setIsProcessingBulk(false);
+                  }
+                }}
+                className="w-full sm:w-auto px-5 py-2 rounded-lg bg-primary text-black font-cyber font-bold text-xs hover:bg-white transition-all disabled:opacity-50 whitespace-nowrap shadow-neon-cyan"
+              >
+                {isProcessingBulk ? 'Menerapkan...' : 'Terapkan Margin Masal'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Existing product filters & list */}
+        <div className="flex items-center justify-between pt-2 border-t border-surface-border">
+          <div><h3 className="text-xs font-cyber font-bold text-white uppercase">Daftar Item Produk</h3>{productSummary && <p className="text-[10px] text-slate-400 mt-0.5">{productSummary.totalProducts} produk • {productSummary.activeProducts} aktif • {productSummary.categories?.map((c: any) => `${c.name}: ${c.count}`).join(' • ')}</p>}</div>
         </div>
         <div className="flex flex-wrap gap-2">
           {['', 'Game', 'Pulsa', 'Data', 'PLN', 'E-Wallet', 'Voucher', 'Other'].map(category => <button key={category} onClick={() => { setProductCategory(category); setProductGroup(''); }} className={`px-3 py-1 rounded-full text-xs border ${productCategory === category ? 'bg-primary text-black border-primary' : 'border-surface-border text-slate-300'}`}>{category || 'Semua'}</button>)}
