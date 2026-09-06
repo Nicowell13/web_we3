@@ -30,7 +30,7 @@ export const transactionStatusEnum = pgEnum('transaction_status', [
 
 export const discountTypeEnum = pgEnum('discount_type', ['percentage', 'fixed']);
 export const pointEntryTypeEnum = pgEnum('point_entry_type', ['earn', 'spend', 'adjustment']);
-export const voucherTypeEnum = pgEnum('voucher_type', ['new_user', 'promo', 'loyalty_points']);
+export const voucherTypeEnum = pgEnum('voucher_type', ['new_user', 'promo', 'loyalty_points', 'compensation']);
 export const articleStatusEnum = pgEnum('article_status', ['draft', 'scheduled', 'published', 'archived']);
 
 // ----------------------------------------------------
@@ -177,6 +177,7 @@ export const vouchers = pgTable(
     quota: integer('quota').default(100).notNull(),
     quotaUsed: integer('quota_used').default(0).notNull(),
     dailyLimit: integer('daily_limit'), // limit pemakaian per hari untuk voucher new_user / promo
+    targetUserId: text('target_user_id').references(() => users.id, { onDelete: 'cascade' }), // Khusus voucher kompensasi
     pointsRequired: integer('points_required').default(0).notNull(), // poin yang ditukarkan (khusus loyalty_points)
     isPublic: boolean('is_public').default(true).notNull(),
     startAt: timestamp('start_at', { withTimezone: true }).defaultNow().notNull(),

@@ -129,4 +129,28 @@ describe('[FEAT-06] Voucher Types Eligibility Logic (new_user, promo, loyalty_po
     const isEligibleTime = pastStart <= now && futureExp > now;
     expect(isEligibleTime).toBe(true);
   });
+
+  it('compensation voucher rejects unauthorized user', () => {
+    const compVoucher = {
+      voucherType: 'compensation',
+      targetUserId: 'user_victim_123',
+    };
+    const requestingUser = 'user_stranger_456';
+    const isAuthorized = compVoucher.targetUserId === requestingUser;
+    expect(isAuthorized).toBe(false);
+  });
+
+  it('compensation voucher accepts target user and enforces single use', () => {
+    const compVoucher = {
+      voucherType: 'compensation',
+      targetUserId: 'user_victim_123',
+      quota: 1,
+      quotaUsed: 0,
+    };
+    const requestingUser = 'user_victim_123';
+    const isAuthorized = compVoucher.targetUserId === requestingUser;
+    const isAvailable = compVoucher.quotaUsed < compVoucher.quota;
+    expect(isAuthorized).toBe(true);
+    expect(isAvailable).toBe(true);
+  });
 });

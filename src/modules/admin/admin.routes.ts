@@ -8,6 +8,7 @@ import { syncDigiflazzProducts } from './product-sync.service';
 import { bulkUpdateProducts, calculatePriceFromMargin, getProductSummary, listAdminProducts, updateAdminProduct } from './product-admin.service';
 import { createAdminVoucher, listAdminVouchers, updateAdminVoucher } from './voucher-admin.service';
 import { listFailedOrActionOrders, repayAdminOrder } from './order-admin.service';
+import { createCompensationVoucher } from './compensation-admin.service';
 
 /**
  * Old-school admin panel API – admin‑only protected.
@@ -68,6 +69,28 @@ export const adminRoutes = new Elysia({ prefix: '/api/v1/old-school' })
     }
     try { return { ok: true, voucher: await createAdminVoucher({ ...input, code: input.code.toUpperCase(), discountValue: String(input.discountValue), minPurchase: String(input.minPurchase ?? 0), maxDiscount: input.maxDiscount == null ? null : String(input.maxDiscount), quota: Number(input.quota), pointsRequired: Number(input.pointsRequired ?? 0), expiresAt: new Date(input.expiresAt) }) }; }
     catch { set.status = 409; return { ok: false, message: 'Voucher code already exists or payload conflicts' }; }
+  })
+  .post('/vouchers/create-compensation', async ({ body, set }) => {
+    const input = body as any;
+    if (!input?.targetUserId || !['fixed', 'percentage'].includes(input?.discountType) || Number(input?.discountValue) <= 0) {
+      set.status = 400;
+      return { ok: false, message: 'Invalid compensation voucher payload' };
+    }
+    try {
+      const voucher = await createCompensationVoucher({
+        targetUserId: input.targetUserId,
+        discountType: input.discountType,
+        discountValue: String(input.discountValue),
+        minPurchase: String(input.minPurchase ?? 0),
+        maxDiscount: input.maxDiscount ? String(input.maxDiscount) : null,
+        expiryDays: Number(input.expiryDays || 30),
+        reason: input.reason,
+      });
+      return { ok: true, voucher };
+    } catch (err: any) {
+      set.status = 400;
+      return { ok: false, message: err?.message || 'Failed to create compensation voucher' };
+    }
   })
   .patch('/vouchers/:id', async ({ params, body, set }) => {
     const input = body as any;

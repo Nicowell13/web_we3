@@ -84,6 +84,15 @@ export async function validateVoucherEligibility(
     }
   }
 
+  if (voucher.voucherType === 'compensation' || voucher.targetUserId) {
+    if (!userId) {
+      return { eligible: false, reason: 'Login required for compensation voucher' };
+    }
+    if (voucher.targetUserId && voucher.targetUserId !== userId) {
+      return { eligible: false, reason: 'Voucher kompensasi ini khusus untuk akun penerima tertentu' };
+    }
+  }
+
   if (voucher.voucherType === 'loyalty_points' || voucher.pointsRequired > 0) {
     if (!userId) {
       return { eligible: false, reason: 'Login required to redeem loyalty points voucher' };
