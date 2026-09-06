@@ -163,38 +163,33 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
   }, [products]);
 
   const filteredProducts = useMemo(() => {
+    let list: Product[] = [];
     if (activeTab === 'pulsa') {
       if (!phone || phone.length < 4 || !detectedOperator) return [];
-      return availableProducts.filter(p => {
+      list = availableProducts.filter(p => {
         const cat = (p.gameCategory || '').toLowerCase();
         const isPulsa = cat === 'pulsa' || p.denomination.toLowerCase().includes('pulsa');
         if (!isPulsa) return false;
         const combined = `${p.gameName || ''} ${p.denomination} ${p.name}`;
         return matchesOperator(combined, detectedOperator);
       });
-    }
-
-    if (activeTab === 'data') {
+    } else if (activeTab === 'data') {
       if (!phone || phone.length < 4 || !detectedOperator) return [];
-      return availableProducts.filter(p => {
+      list = availableProducts.filter(p => {
         const cat = (p.gameCategory || '').toLowerCase();
         const isData = cat === 'data' || p.denomination.toLowerCase().includes('data') || p.denomination.toLowerCase().includes('gb');
         if (!isData) return false;
         const combined = `${p.gameName || ''} ${p.denomination} ${p.name}`;
         return matchesOperator(combined, detectedOperator);
       });
-    }
-
-    if (activeTab === 'pln') {
-      return availableProducts.filter(p => {
+    } else if (activeTab === 'pln') {
+      list = availableProducts.filter(p => {
         const cat = (p.gameCategory || '').toLowerCase();
         const gid = (p.gameId || '').toLowerCase();
         return cat === 'pln' || gid.includes('pln') || p.denomination.toLowerCase().includes('pln');
       });
-    }
-
-    if (activeTab === 'game') {
-      return availableProducts.filter(p => {
+    } else if (activeTab === 'game') {
+      list = availableProducts.filter(p => {
         const gid = (p.gameId || '').toLowerCase();
         const gname = (p.gameName || '').toLowerCase();
         if (selectedGame === 'mobile-legends') return gid.includes('mobile-legends') || gid.includes('mlbb') || gname.includes('mobile legends');
@@ -204,7 +199,7 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
       });
     }
 
-    return [];
+    return list.slice().sort((a, b) => Number(a.sellPrice) - Number(b.sellPrice));
   }, [availableProducts, activeTab, phone, detectedOperator, selectedGame]);
 
   const isTargetFilled = () => {
@@ -555,9 +550,6 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
                         Rp {sellPriceNum.toLocaleString('id-ID')}
                       </p>
                     </div>
-                    <span className="px-2 py-1 rounded-md bg-black/40 border border-primary/20 text-[9px] text-primary font-mono">
-                      Detail jelas
-                    </span>
                   </div>
                 </div>
               );
@@ -576,8 +568,9 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
           </div>
 
           <button
+            disabled={!isTargetFilled()}
             onClick={handleStartCheckout}
-            className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-cyber font-bold text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-neon-cyan bg-primary text-black hover:bg-white active:scale-95"
+            className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-cyber font-bold text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-neon-cyan bg-primary text-black hover:bg-white active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:bg-primary"
           >
             <span>BELI SEKARANG</span>
             <Zap className="w-3.5 h-3.5 fill-current" />
