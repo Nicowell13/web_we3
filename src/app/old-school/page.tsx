@@ -8,6 +8,19 @@ import { ShieldAlert, RefreshCw, Terminal, Activity, Settings2, Database, LogIn 
 type AdminMetrics = {
   totalTransactions: number;
   totalSales: number;
+  gmv: number;
+  supplierCost: number;
+  grossProfit: number;
+  successfulOrders: number;
+  successRate: number;
+  uniqueCustomers: number;
+  pendingOrders: number;
+  failedOrders: number;
+  outstandingPoints: number;
+  rewardCost: number;
+  rewardCostRate: number;
+  rewardCostWithinCap: boolean;
+  referralCost: number;
   statusCounts: Record<string, number>;
 };
 
@@ -138,6 +151,19 @@ export default function OldSchoolPage() {
         setMetrics({
           totalTransactions: m.totalTransactions ?? 0,
           totalSales: m.totalSales ?? 0,
+          gmv: m.gmv ?? 0,
+          supplierCost: m.supplierCost ?? 0,
+          grossProfit: m.grossProfit ?? 0,
+          successfulOrders: m.successfulOrders ?? 0,
+          successRate: m.successRate ?? 0,
+          uniqueCustomers: m.uniqueCustomers ?? 0,
+          pendingOrders: m.pendingOrders ?? 0,
+          failedOrders: m.failedOrders ?? 0,
+          outstandingPoints: m.outstandingPoints ?? 0,
+          rewardCost: m.rewardCost ?? 0,
+          rewardCostRate: m.rewardCostRate ?? 0,
+          rewardCostWithinCap: m.rewardCostWithinCap ?? true,
+          referralCost: m.referralCost ?? 0,
           statusCounts: m.statusCounts ?? {},
         });
       }
@@ -260,24 +286,21 @@ export default function OldSchoolPage() {
 
       {/* Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="glass-panel p-5 rounded-xl border border-surface-border space-y-1">
-          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Total Transaksi</p>
-          <p className="text-2xl font-cyber font-bold text-white">{metrics?.totalTransactions.toLocaleString('id-ID') ?? 0}</p>
-        </div>
-        <div className="glass-panel p-5 rounded-xl border border-primary/30 space-y-1">
-          <p className="text-[10px] text-primary uppercase tracking-wider font-semibold">Total Omset</p>
-          <p className="text-2xl font-cyber font-bold text-primary">Rp {(metrics?.totalSales ?? 0).toLocaleString('id-ID')}</p>
-        </div>
-        <div className="glass-panel p-5 rounded-xl border border-accent-green/30 space-y-1">
-          <p className="text-[10px] text-accent-green uppercase tracking-wider font-semibold">Transaksi Sukses</p>
-          <p className="text-2xl font-cyber font-bold text-accent-green">{metrics?.statusCounts['SUCCESS'] ?? 0}</p>
-        </div>
-        <div className="glass-panel p-5 rounded-xl border border-secondary/30 space-y-1">
-          <p className="text-[10px] text-secondary uppercase tracking-wider font-semibold">Transaksi Diproses / Pending</p>
-          <p className="text-2xl font-cyber font-bold text-secondary">
-            {(metrics?.statusCounts['PROCESSING'] ?? 0) + (metrics?.statusCounts['PENDING'] ?? 0) + (metrics?.statusCounts['PAID'] ?? 0)}
-          </p>
-        </div>
+        {[
+          ['GMV Sukses', money(metrics?.gmv ?? 0), 'text-primary'],
+          ['Laba Kotor', money(metrics?.grossProfit ?? 0), 'text-accent-green'],
+          ['Success Rate', `${((metrics?.successRate ?? 0) * 100).toFixed(1)}%`, 'text-white'],
+          ['Customer Sukses', (metrics?.uniqueCustomers ?? 0).toLocaleString('id-ID'), 'text-white'],
+          ['Order Pending', (metrics?.pendingOrders ?? 0).toLocaleString('id-ID'), 'text-secondary'],
+          ['Order Gagal', (metrics?.failedOrders ?? 0).toLocaleString('id-ID'), 'text-red-400'],
+          ['Biaya Loyalty', `${money(metrics?.rewardCost ?? 0)} (${((metrics?.rewardCostRate ?? 0) * 100).toFixed(2)}%)`, metrics?.rewardCostWithinCap === false ? 'text-red-400' : 'text-accent-green'],
+          ['Liabilitas Poin', (metrics?.outstandingPoints ?? 0).toLocaleString('id-ID'), 'text-white'],
+        ].map(([label, value, color]) => (
+          <div key={label} className="glass-panel p-5 rounded-xl border border-surface-border space-y-1">
+            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">{label}</p>
+            <p className={`text-2xl font-cyber font-bold ${color}`}>{value}</p>
+          </div>
+        ))}
       </div>
 
       {actionMessage && <p className="text-xs text-primary font-mono">{actionMessage}</p>}

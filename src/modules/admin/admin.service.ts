@@ -1,5 +1,5 @@
 import { db } from '../../db';
-import { transactions, auditTrails, pointLedger, systemConfigs, users } from '../../db/schema';
+import { transactions, auditTrails, pointLedger, products, systemConfigs, users } from '../../db/schema';
 import { desc, eq, sql } from 'drizzle-orm';
 
 /** Metrics for admin dashboard */
@@ -9,10 +9,18 @@ export async function getAdminMetrics() {
     .from(transactions)
     .then(res => res[0]?.count ?? 0);
 
-  const sales = await db
-    .select({ sum: sql<string>`coalesce(sum(${transactions.amount}), 0)` })
+  const [financials] = await db
+    .select({
+      gmv: sql<string>`coalesce(sum(case when ${transactions.status} = 'SUCCESS' then ${transactions.amount} else 0 end), 0)`,
+      supplierCost: sql<string>`coalesce(sum(case when ${transactions.status} = 'SUCCESS' then ${products.basePrice} else 0 end), 0)`,
+      successfulOrders: sql<number>`count(*) filter (where ${transactions.status} = 'SUCCESS')`,
+      uniqueCustomers: sql<number>`count(distinct ${transactions.userId}) filter (where ${transactions.status} = 'SUCCESS')`,
+    })
     .from(transactions)
-    .then(res => Number(res[0]?.sum ?? 0));
+    .innerJoin(products, eq(transactions.productId, products.id));
+  const sales = Number(financials?.gmv ?? 0);
+  const supplierCost = Number(financials?.supplierCost ?? 0);
+  const grossProfit = sales - supplierCost;
 
   const statusCounts = await db
     .select({ status: transactions.status, cnt: sql<number>`count(*)` })
@@ -36,6 +44,15 @@ export async function getAdminMetrics() {
   return {
     totalTransactions: Number(total),
     totalSales: sales,
+    gmv: sales,
+    supplierCost,
+    grossProfit,
+    successfulOrders: Number(financials?.successfulOrders ?? 0),
+    successRate: Number(total) > 0 ? Number(financials?.successfulOrders ?? 0) / Number(total) : 0,
+    uniqueCustomers: Number(financials?.uniqueCustomers ?? 0),
+    pendingOrders: (statusCounts.PENDING ?? 0) + (statusCounts.PAID ?? 0) + (statusCounts.PROCESSING ?? 0),
+    failedOrders: statusCounts.FAILED ?? 0,
+    referralCost: 0,
     statusCounts,
     outstandingPoints: Number(loyalty?.outstandingPoints ?? 0),
     rewardCost,
