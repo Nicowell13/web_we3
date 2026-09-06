@@ -20,6 +20,8 @@ type AuditLog = {
 
 type SystemConfig = { id: string; key: string; value: string; description: string | null; isActive: boolean };
 type AdminProduct = { id: string; denomination: string; basePrice: string; sellPrice: string; isActive: boolean; supplierStatus: string; gameId: string; category?: string; groupName?: string; brand?: string | null; marginType?: 'fixed' | 'percentage' | null; marginValue?: string | null };
+const money = (value: string | number) => `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
+const profit = (product: AdminProduct) => Number(product.sellPrice) - Number(product.basePrice);
 type AdminVoucher = {
   id: string;
   code: string;
@@ -167,7 +169,7 @@ export default function OldSchoolPage() {
     const res = await fetch(`${apiBase}${path}`, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
     const result = await res.json().catch(() => ({}));
     setActionMessage(res.ok ? (result.total === undefined ? 'Perubahan tersimpan.' : `Sync selesai: ${result.gamesCreated ?? 0} game, ${result.created} produk baru, ${result.updated} diperbarui, ${result.unchanged} tetap, ${result.failed} gagal dari ${result.total}.`) : (result.message || `Request gagal (${res.status}).`));
-    if (res.ok) await verifyAndLoad();
+    if (res.ok) { await verifyAndLoad(); }
     return res.ok;
   };
 
@@ -362,7 +364,8 @@ export default function OldSchoolPage() {
               <input type="checkbox" checked={selectedProducts.includes(p.id)} onChange={() => setSelectedProducts(v => v.includes(p.id) ? v.filter(id => id !== p.id) : [...v, p.id])} />
               <div className="space-y-0.5">
                 <span className="font-mono text-white font-semibold">{p.gameId} / {p.denomination}</span>
-                <p className="text-[10px] text-slate-400">Modal: Rp {Number(p.basePrice).toLocaleString('id-ID')} • Jual: Rp {Number(p.sellPrice).toLocaleString('id-ID')}</p>
+                <p className="text-[10px] text-slate-300">Beli: {money(p.basePrice)} • Jual: {money(p.sellPrice)}</p>
+                <p className={`text-[10px] font-semibold ${profit(p) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>Profit: {money(profit(p))} ({Number(p.basePrice) ? ((profit(p) / Number(p.basePrice)) * 100).toFixed(1) : '0.0'}%)</p>
               </div>
               <div className="flex gap-2 items-center">
                 <button onClick={() => setEditingProduct(p)} className="text-primary hover:underline">Harga</button>
@@ -374,7 +377,7 @@ export default function OldSchoolPage() {
                 <form className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onSubmit={async (e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const sellPrice = String(f.get('sellPrice') || ''); const marginType = String(f.get('marginType') || 'fixed') as 'fixed' | 'percentage'; const marginValue = String(f.get('marginValue') || '0'); await adminAction(`/api/v1/old-school/products/${p.id}`, 'PATCH', { sellPrice, marginType, marginValue }); setEditingProduct(null); }}>
                   <div className="glass-panel rounded-xl p-5 w-full max-w-sm space-y-3">
                     <h3 className="text-sm font-semibold text-white">Atur Harga Produk</h3>
-                    <p className="text-xs text-slate-400">{p.denomination} • Modal Rp {Number(p.basePrice).toLocaleString('id-ID')}</p>
+                    <p className="text-xs text-slate-300">{p.denomination}</p><p className="text-xs text-slate-400">Harga beli: {money(p.basePrice)} • Harga jual saat ini: {money(p.sellPrice)} • Profit: {money(profit(p))}</p>
                     <label className="text-xs text-slate-300 block">Harga jual<input name="sellPrice" defaultValue={p.sellPrice} type="number" min="0" step="0.01" required className="mt-1 w-full bg-black/40 border border-surface-border rounded p-2 text-white" /></label>
                     <label className="text-xs text-slate-300 block">Margin<select name="marginType" defaultValue={p.marginType || 'fixed'} className="mt-1 w-full bg-black/40 border border-surface-border rounded p-2 text-white"><option value="fixed">Fixed (Rp)</option><option value="percentage">Percentage (%)</option></select></label>
                     <label className="text-xs text-slate-300 block">Nilai margin<input name="marginValue" defaultValue={p.marginValue || ''} type="number" min="0" step="0.01" className="mt-1 w-full bg-black/40 border border-surface-border rounded p-2 text-white" /></label>
