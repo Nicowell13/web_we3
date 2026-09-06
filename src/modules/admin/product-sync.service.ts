@@ -130,8 +130,8 @@ export async function syncDigiflazzProducts() {
     .filter(Boolean);
 
   let deleted = 0;
-  if (incomingSkus.length > 0) {
-    try {
+  // Empty valid pricelist means supplier removed every product. Non-array payload already rejected above.
+  try {
       const missingProducts = await db
         .select({ id: products.id, sku: products.sku })
         .from(products)
@@ -159,9 +159,8 @@ export async function syncDigiflazzProducts() {
           );
         deleted = missingProducts.length;
       }
-    } catch {
-      // Reconcile deleted fails safely without blocking overall sync result
-    }
+  } catch {
+    // Reconcile failure must not hide successful item updates.
   }
 
   return { created, updated, unchanged, failed, deleted, gamesCreated, groupsCreated, groupsUpdated, total: incoming.length };
