@@ -1,7 +1,7 @@
 /**
  * advanceTransaction integration tests.
  * Isolated from payment.test.ts mocks by running in a separate file.
- * Uses injectable fakes — no real DB or supplier calls.
+ * Uses injectable fakes â€” no real DB or supplier calls.
  */
 import { describe, expect, it } from 'bun:test';
 import { advanceTransaction } from '../src/modules/transaction/transaction.service';
@@ -9,7 +9,7 @@ import { advanceTransaction } from '../src/modules/transaction/transaction.servi
 const noop = async () => {};
 
 describe('[FEAT-05] advanceTransaction: state machine + supplier + points', () => {
-  it('PENDING → PAID triggers supplier order and advances to PROCESSING', async () => {
+  it('PENDING â†’ PAID triggers supplier order and advances to PROCESSING', async () => {
     const updated: string[] = [];
     const audited: string[] = [];
 
@@ -38,7 +38,8 @@ describe('[FEAT-05] advanceTransaction: state machine + supplier + points', () =
       async (_id: string, s: string) => { updated.push(s); },
       noop,
       async (ev: string) => { audited.push(ev); },
-      async () => mockSupplier as any
+      async () => mockSupplier as any,
+      async () => false
     );
 
     expect(result.from).toBe('PENDING');
@@ -49,7 +50,7 @@ describe('[FEAT-05] advanceTransaction: state machine + supplier + points', () =
     expect(supplierRef).toBe('WETRI-001');
   });
 
-  it('PROCESSING → SUCCESS awards correct points (Rp 86.000 → 86 pts)', async () => {
+  it('PROCESSING â†’ SUCCESS awards correct points (Rp 86.000 â†’ 86 pts)', async () => {
     let pointsAwarded = 0;
     const audited: string[] = [];
 
@@ -69,14 +70,15 @@ describe('[FEAT-05] advanceTransaction: state machine + supplier + points', () =
         pointsAwarded = pts;
       },
       async (ev: string) => { audited.push(ev); },
-      async () => ({}) as any
+      async () => ({}) as any,
+      async () => false
     );
 
     expect(pointsAwarded).toBe(86);
     expect(audited).toContain('POINTS_AWARDED');
   });
 
-  it('PROCESSING → SUCCESS with Rp 500 awards 0 points (no audit entry)', async () => {
+  it('PROCESSING â†’ SUCCESS with Rp 500 awards 0 points (no audit entry)', async () => {
     const audited: string[] = [];
     const fakeTx = { orderId: 'WETRI-003', status: 'PROCESSING', userId: 'u1', amount: '500', targetUserId: '1' };
 
@@ -84,20 +86,22 @@ describe('[FEAT-05] advanceTransaction: state machine + supplier + points', () =
       'WETRI-003', 'SUCCESS', {},
       async () => fakeTx as any, noop, noop,
       async (ev: string) => { audited.push(ev); },
-      async () => ({}) as any
+      async () => ({}) as any,
+      async () => false
     );
 
     expect(audited).not.toContain('POINTS_AWARDED');
   });
 
-  it('throws on invalid transition PENDING → SUCCESS', async () => {
+  it('throws on invalid transition PENDING â†’ SUCCESS', async () => {
     const fakeTx = { orderId: 'WETRI-004', status: 'PENDING', userId: 'u1', amount: '25000', targetUserId: '1' };
 
     await expect(
       advanceTransaction(
         'WETRI-004', 'SUCCESS', {},
         async () => fakeTx as any, noop, noop, noop,
-        async () => ({}) as any
+        async () => ({}) as any,
+        async () => false
       )
     ).rejects.toThrow('Invalid state transition');
   });
@@ -107,7 +111,8 @@ describe('[FEAT-05] advanceTransaction: state machine + supplier + points', () =
       advanceTransaction(
         'WETRI-MISSING', 'PAID', {},
         async () => null, noop, noop, noop,
-        async () => ({}) as any
+        async () => ({}) as any,
+        async () => false
       )
     ).rejects.toThrow('Transaction not found');
   });

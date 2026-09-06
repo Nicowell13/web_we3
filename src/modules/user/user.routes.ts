@@ -4,6 +4,7 @@ import { db } from '../../db';
 import { users } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import { uploadAvatarToCloudinary, deleteAvatarFromCloudinary } from '../../lib/cloudinary';
+import { attachReferral } from './referral.service';
 
 export const userRoutes = new Elysia({ prefix: '/api/v1/user' })
   .use(authenticate)
@@ -16,6 +17,15 @@ export const userRoutes = new Elysia({ prefix: '/api/v1/user' })
     }
     return { ok: true, user: record };
   })
+  .post('/referral', async ({ user, body, set }) => {
+    try {
+      const result = await attachReferral(user.uid, (body as { code: string }).code);
+      return { ok: true, ...result };
+    } catch (error) {
+      set.status = 400;
+      return { ok: false, message: error instanceof Error ? error.message : 'Referral failed' };
+    }
+  }, { body: t.Object({ code: t.String({ minLength: 3, maxLength: 40 }) }, { additionalProperties: false }) })
   .post(
     '/avatar',
     async ({ user, body, set }) => {

@@ -2,6 +2,7 @@ import { db } from '../../db';
 import { users } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import { createDefaultAvatar } from '../../lib/cloudinary';
+import { nanoid } from 'nanoid';
 
 export type UpsertUserPayload = {
   id: string;       // Firebase UID
@@ -49,6 +50,7 @@ export async function syncUserFromFirebase(payload: UpsertUserPayload) {
       email: payload.email,
       name: payload.name,
       avatarUrl,
+      referralCode: nanoid(8).toUpperCase(),
       role: 'user',
       points: 0,
       streak: 0,

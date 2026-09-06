@@ -36,6 +36,13 @@
       "when": 1788686499606,
       "tag": "0004_outgoing_prodigy",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788687271262,
+      "tag": "0005_rapid_rawhide_kid",
+      "breakpoints": true
     }
   ]
 }

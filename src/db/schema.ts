@@ -43,6 +43,7 @@ export const users = pgTable(
     email: text('email').notNull().unique(),
     name: text('name'),
     avatarUrl: text('avatar_url'),
+    referralCode: text('referral_code').unique(),
     role: userRoleEnum('role').default('user').notNull(),
     status: userStatusEnum('status').default('active').notNull(),
     bannedAt: timestamp('banned_at', { withTimezone: true }),
@@ -211,6 +212,22 @@ export const userVouchers = pgTable(
   ]
 );
 
+export const referrals = pgTable(
+  'referrals',
+  {
+    referredUserId: text('referred_user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+    referrerUserId: text('referrer_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    qualifyingOrderId: text('qualifying_order_id').references(() => transactions.orderId, { onDelete: 'set null' }),
+    rewardPoints: integer('reward_points').default(0).notNull(),
+    rewardedAt: timestamp('rewarded_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('referrals_referrer_user_id_idx').on(table.referrerUserId),
+    uniqueIndex('referrals_qualifying_order_idx').on(table.qualifyingOrderId),
+  ]
+);
+
 export const pointLedger = pgTable(
   'point_ledger',
   {
@@ -313,6 +330,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   vouchers: many(userVouchers),
   articles: many(articles),
   pointLedger: many(pointLedger),
+  referralsMade: many(referrals, { relationName: 'referrer' }),
 }));
 
 export const gamesCatalogRelations = relations(gamesCatalog, ({ many }) => ({

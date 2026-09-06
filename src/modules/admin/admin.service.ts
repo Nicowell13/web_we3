@@ -1,5 +1,5 @@
 import { db } from '../../db';
-import { transactions, auditTrails, pointLedger, products, systemConfigs, users } from '../../db/schema';
+import { transactions, auditTrails, pointLedger, products, referrals, systemConfigs, users } from '../../db/schema';
 import { desc, eq, sql } from 'drizzle-orm';
 
 /** Metrics for admin dashboard */
@@ -38,6 +38,11 @@ export async function getAdminMetrics() {
   const [rewards] = await db.select({
     pointsAwarded: sql<number>`coalesce(sum(case when ${pointLedger.points} > 0 then ${pointLedger.points} else 0 end), 0)`,
   }).from(pointLedger);
+  const [referralMetrics] = await db.select({
+    attributed: sql<number>`count(*)`,
+    converted: sql<number>`count(*) filter (where ${referrals.rewardedAt} is not null)`,
+    cost: sql<number>`coalesce(sum(${referrals.rewardPoints}), 0)`,
+  }).from(referrals);
   const rewardCost = Number(rewards?.pointsAwarded ?? 0);
   const rewardCostRate = sales > 0 ? rewardCost / sales : 0;
 
@@ -52,7 +57,9 @@ export async function getAdminMetrics() {
     uniqueCustomers: Number(financials?.uniqueCustomers ?? 0),
     pendingOrders: (statusCounts.PENDING ?? 0) + (statusCounts.PAID ?? 0) + (statusCounts.PROCESSING ?? 0),
     failedOrders: statusCounts.FAILED ?? 0,
-    referralCost: 0,
+    referralAttributed: Number(referralMetrics?.attributed ?? 0),
+    referralConverted: Number(referralMetrics?.converted ?? 0),
+    referralCost: Number(referralMetrics?.cost ?? 0),
     statusCounts,
     outstandingPoints: Number(loyalty?.outstandingPoints ?? 0),
     rewardCost,

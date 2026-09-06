@@ -4,6 +4,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { assertTransition, isTerminal, TxStatus } from './stateMachine';
 import { calculatePoints } from './points.logic';
 import { getActiveSupplier } from '../suppliers/supplierFactory';
+import { rewardReferral } from '../user/referral.service';
 
 // ── Repo helpers (injectable for testing) ────────────────────────────────────
 export async function findTx(orderId: string) {
@@ -82,7 +83,8 @@ export async function advanceTransaction(
   _setStatus  = setTxStatus,
   _addPoints  = addUserPoints,
   _audit      = auditLog,
-  _getSupplier = getActiveSupplier
+  _getSupplier = getActiveSupplier,
+  _rewardReferral = rewardReferral
 ) {
   const tx = await _findTx(orderId);
   if (!tx) throw new Error(`Transaction not found: ${orderId}`);
@@ -134,6 +136,8 @@ export async function advanceTransaction(
         await _audit('POINTS_AWARDED', orderId, null, { userId: tx.userId, points: earned });
       }
     }
+    const referralRewarded = await _rewardReferral(tx.userId, orderId);
+    if (referralRewarded) await _audit('REFERRAL_REWARDED', orderId, null, { referredUserId: tx.userId });
   }
 
   return { orderId, from, to: targetStatus };
