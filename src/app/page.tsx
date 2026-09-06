@@ -143,89 +143,17 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Modern Quick Order Dialog / Widget */}
+      {/* Modern Quick Order Dialog / Widget (Main Homepage Focus) */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-cyber text-lg sm:text-2xl font-bold text-white tracking-wide">
               TRANSAKSI <span className="text-primary">KILAT</span>
             </h2>
-            <p className="text-xs text-slate-400">Pilih operator / ID pelanggan, temukan nominal dan checkout langsung.</p>
+            <p className="text-xs text-slate-400">Pilih operator / ID pelanggan, temukan nominal promo dan checkout instan.</p>
           </div>
         </div>
         <QuickOrderWidget products={allProducts} />
-      </section>
-
-      {/* 1. Category Icons: 3 Rows across on Mobile, Row-down for remaining */}
-      <section className="space-y-4">
-        <h2 className="font-cyber text-base sm:text-xl font-bold text-white tracking-wide">
-          KATEGORI <span className="text-secondary">PRODUK</span>
-        </h2>
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5 sm:gap-4">
-          {categories.map(({ icon: Icon, label, href }) => (
-            <Link
-              key={label}
-              href={href}
-              className="glass-panel rounded-xl p-3 sm:p-4 text-center border border-surface-border hover:border-primary hover:shadow-neon-cyan transition-all duration-200 flex flex-col items-center justify-center gap-2 group"
-            >
-              <div className="w-10 h-10 rounded-lg bg-black/40 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Icon className="w-5 h-5 text-primary group-hover:text-cyan-300 transition-colors" />
-              </div>
-              <span className="text-xs font-semibold text-slate-200 group-hover:text-white transition-colors">{label}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* 5. Product Catalog: Mobile 2 products per row (grid-cols-2) */}
-      <section className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="font-cyber text-lg sm:text-2xl font-bold text-white tracking-wide">
-              KATALOG <span className="text-primary">#POPULER</span>
-            </h2>
-            <p className="text-xs text-slate-400">Harga termurah terupdate otomatis setiap hari.</p>
-          </div>
-          <Link href="/catalog" className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
-            Lihat Semua <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
-          {(catalogSlice.length ? catalogSlice : FEATURED_GAMES).map((item: any) => (
-            <Link
-              key={item.id}
-              href={`/checkout/${item.id}`}
-              className="group glass-panel rounded-xl border border-surface-border overflow-hidden hover:border-primary transition-all duration-300 hover:shadow-neon-cyan flex flex-col justify-between"
-            >
-              <div className="h-28 sm:h-40 w-full relative overflow-hidden bg-slate-800">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={item.thumbnailUrl || item.image || '/logo.webp'}
-                  alt={item.gameName || item.name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-                <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/70 backdrop-blur text-[9px] sm:text-[10px] text-slate-200">
-                  {item.gameCategory || item.category || 'PPOB'}
-                </div>
-              </div>
-              <div className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between space-y-2">
-                <div>
-                  <p className="text-[10px] text-muted line-clamp-1">{item.gameName || item.publisher || 'WETRI'}</p>
-                  <h3 className="font-cyber font-semibold text-white text-xs sm:text-sm group-hover:text-primary transition-colors line-clamp-2">
-                    {item.name || item.denomination}
-                  </h3>
-                </div>
-                <div className="pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-xs">
-                  <span className="text-[10px] text-slate-400">Mulai</span>
-                  <span className="text-primary font-cyber font-bold text-xs sm:text-sm">
-                    Rp {Number(item.sellPrice || 1000).toLocaleString('id-ID')}
-                  </span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
       </section>
 
       {/* Top Players Leaderboard */}
