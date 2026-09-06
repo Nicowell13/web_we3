@@ -1,6 +1,7 @@
 import { db } from '../../db';
 import { gamesCatalog, products } from '../../db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, notInArray } from 'drizzle-orm';
+import { calculatePriceFromMargin } from './product-admin.service';
 
 function normalize(value: unknown) {
   return String(value ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -31,10 +32,15 @@ export function mapDigiflazzProduct(item: Record<string, unknown>) {
   const brand = String(item.brand ?? '').trim();
   const gameKey = normalize(item.game_id ?? classification.groupName);
   const price = String(item.price ?? item.cost_price ?? '').trim();
-  const isAvailable = item.buyer_product_status === true && item.seller_product_status === true;
-  const supplierStatus = (item.buyer_product_status !== undefined || item.seller_product_status !== undefined)
-    ? (isAvailable ? 'available' : 'off')
-    : (String(item.status ?? 'available').trim() || 'available');
+
+  const buyerActive = item.buyer_product_status !== undefined ? Boolean(item.buyer_product_status) : true;
+  const sellerActive = item.seller_product_status !== undefined ? Boolean(item.seller_product_status) : true;
+  const rawStatus = String(item.status ?? '').trim().toLowerCase();
+  const isStatusNormal = !rawStatus || rawStatus === 'normal' || rawStatus === 'available';
+
+  const isAvailable = buyerActive && sellerActive && isStatusNormal;
+  const supplierStatus = isAvailable ? 'available' : 'off';
+
   return {
     sku,
     brand: brand || null,
@@ -78,8 +84,37 @@ export async function syncDigiflazzProducts() {
       const existing = await db.query.products.findFirst({ where: and(eq(products.supplierCode, 'digiflazz'), eq(products.supplierProductCode, item.sku)) });
       const now = new Date();
       if (existing) {
-        const changes = { gameId: game.id, denomination: item.denomination, basePrice: item.costPrice, brand: item.brand, productType: item.productType, supplierStatus: item.supplierStatus, syncedAt: now, updatedAt: now };
-        const same = existing.gameId === game.id && existing.denomination === item.denomination && existing.basePrice === item.costPrice && existing.brand === item.brand && existing.productType === item.productType && existing.supplierStatus === item.supplierStatus;
+        let newSellPrice = existing.sellPrice;
+        if (existing.marginType && existing.marginValue && existing.basePrice !== item.costPrice) {
+          try {
+            newSellPrice = String(calculatePriceFromMargin(Number(item.costPrice), existing.marginType as 'fixed' | 'percentage', Number(existing.marginValue)));
+          } catch {
+            newSellPrice = existing.sellPrice;
+          }
+        }
+        const changes: Record<string, any> = {
+          gameId: game.id,
+          denomination: item.denomination,
+          basePrice: item.costPrice,
+          sellPrice: newSellPrice,
+          brand: item.brand,
+          productType: item.productType,
+          supplierStatus: item.supplierStatus,
+          syncedAt: now,
+          updatedAt: now,
+        };
+        // If supplier marked product off, deactivate it to keep customer safety
+        if (item.supplierStatus === 'off' && existing.isActive) {
+          changes.isActive = false;
+        }
+        const same = existing.gameId === game.id &&
+          existing.denomination === item.denomination &&
+          existing.basePrice === item.costPrice &&
+          existing.sellPrice === newSellPrice &&
+          existing.brand === item.brand &&
+          existing.productType === item.productType &&
+          existing.supplierStatus === item.supplierStatus &&
+          (!changes.isActive || existing.isActive === changes.isActive);
         if (same) { unchanged++; continue; }
         await db.update(products).set(changes).where(eq(products.id, existing.id));
         updated++;
@@ -89,5 +124,45 @@ export async function syncDigiflazzProducts() {
       }
     } catch { failed++; }
   }
-  return { created, updated, unchanged, failed, gamesCreated, groupsCreated, groupsUpdated, total: incoming.length };
+  // Reconcile deleted products: products in DB under digiflazz not present in incoming pricelist
+  const incomingSkus = incoming
+    .map((raw) => String((raw as any).buyer_sku_code ?? (raw as any).sku ?? '').trim())
+    .filter(Boolean);
+
+  let deleted = 0;
+  if (incomingSkus.length > 0) {
+    try {
+      const missingProducts = await db
+        .select({ id: products.id, sku: products.sku })
+        .from(products)
+        .where(
+          and(
+            eq(products.supplierCode, 'digiflazz'),
+            notInArray(products.supplierProductCode, incomingSkus)
+          )
+        );
+
+      if (missingProducts.length > 0) {
+        const now = new Date();
+        await db
+          .update(products)
+          .set({
+            supplierStatus: 'deleted',
+            isActive: false,
+            updatedAt: now,
+          })
+          .where(
+            and(
+              eq(products.supplierCode, 'digiflazz'),
+              notInArray(products.supplierProductCode, incomingSkus)
+            )
+          );
+        deleted = missingProducts.length;
+      }
+    } catch {
+      // Reconcile deleted fails safely without blocking overall sync result
+    }
+  }
+
+  return { created, updated, unchanged, failed, deleted, gamesCreated, groupsCreated, groupsUpdated, total: incoming.length };
 }

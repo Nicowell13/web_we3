@@ -7,7 +7,7 @@ describe('[ADMIN-13] Digiflazz product mapping', () => {
     expect(product.gameKey).toBe('mobile-legends');
     expect(product.category).toBe('Game');
     expect(product.costPrice).toBe('20000');
-    expect(product.supplierStatus).toBe('Normal');
+    expect(product.supplierStatus).toBe('available');
     expect(product.valid).toBe(true);
   });
 
