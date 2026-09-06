@@ -31,6 +31,10 @@ export function mapDigiflazzProduct(item: Record<string, unknown>) {
   const brand = String(item.brand ?? '').trim();
   const gameKey = normalize(item.game_id ?? classification.groupName);
   const price = String(item.price ?? item.cost_price ?? '').trim();
+  const isAvailable = item.buyer_product_status === true && item.seller_product_status === true;
+  const supplierStatus = (item.buyer_product_status !== undefined || item.seller_product_status !== undefined)
+    ? (isAvailable ? 'available' : 'off')
+    : (String(item.status ?? 'available').trim() || 'available');
   return {
     sku,
     brand: brand || null,
@@ -40,7 +44,7 @@ export function mapDigiflazzProduct(item: Record<string, unknown>) {
     productType: classification.subCategory,
     denomination: String(item.product_name ?? item.desc ?? sku).trim(),
     costPrice: price,
-    supplierStatus: String(item.status ?? 'available').trim() || 'available',
+    supplierStatus,
     valid: Boolean(sku && (brand || item.game_id) && gameKey && /^\d+(\.\d{1,2})?$/.test(price) && Number(price) >= 0),
   };
 }

@@ -41,7 +41,7 @@ export async function getProductSummary() {
 
 export async function listAdminProducts(search?: string, active?: boolean, supplierStatus?: string) {
   const term = search?.trim();
-  const status = supplierStatus?.trim();
+  const status = supplierStatus === undefined ? 'available' : supplierStatus.trim();
   return db.select(columns).from(products).innerJoin(gamesCatalog, eq(products.gameId, gamesCatalog.id)).where(and(
     term ? ilike(products.denomination, `%${term}%`) : undefined,
     active === undefined ? undefined : eq(products.isActive, active),
