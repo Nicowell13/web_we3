@@ -40,10 +40,10 @@ export function Footer() {
           <div>
             <h4 className="font-cyber text-sm font-semibold text-secondary mb-3 uppercase tracking-wider">Bantuan</h4>
             <ul className="space-y-2 text-sm text-slate-400">
-              <li><a href="/faq" className="hover:text-secondary transition-colors">FAQ & Bantuan</a></li>
-              <li><a href="/terms" className="hover:text-secondary transition-colors">Syarat & Ketentuan</a></li>
-              <li><a href="/privacy" className="hover:text-secondary transition-colors">Kebijakan Privasi</a></li>
-              <li><a href="/contact" className="hover:text-secondary transition-colors">Hubungi Kami (24/7)</a></li>
+              <li><a href="/bantuan" className="hover:text-secondary transition-colors">FAQ & Bantuan</a></li>
+              <li><a href="/syarat-ketentuan" className="hover:text-secondary transition-colors">Syarat & Ketentuan</a></li>
+              <li><a href="/kebijakan-privasi" className="hover:text-secondary transition-colors">Kebijakan Privasi</a></li>
+              <li><a href="/hubungi-kami" className="hover:text-secondary transition-colors">Hubungi Kami (24/7)</a></li>
             </ul>
           </div>
         </div>
