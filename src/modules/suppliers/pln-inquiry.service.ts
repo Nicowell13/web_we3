@@ -1,6 +1,15 @@
 import { getActiveSupplier } from './supplierFactory';
 import type { TopUpProvider } from './topupProvider';
 
+/** In-memory cache for valid PLN inquiries (TTL: 5 minutes) */
+const inquiryCache = new Map<string, { result: PlnInquiryResult; expiresAt: number }>();
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+/** Clear expired entries or flush for testing */
+export function clearPlnInquiryCache(): void {
+  inquiryCache.clear();
+}
+
 /** Mask customer name before returning it to public clients. */
 export function maskPlnCustomerName(rawName: string): string {
   if (!rawName || typeof rawName !== 'string') return '***';
@@ -29,11 +38,18 @@ export type PlnInquiryResult = {
   message?: string;
 };
 
-/** Run real Digiflazz PLN inquiry. No mock/fallback customer exists. */
+/** Run real Digiflazz PLN inquiry using admin/store credentials. */
 export async function inquirePlnCustomer(customerNo: string, supplier?: TopUpProvider): Promise<PlnInquiryResult> {
   const cleanNo = (customerNo || '').trim().replace(/\D/g, '');
   if (!isValidPlnCustomerNo(cleanNo)) {
     return { ok: false, customerNo: cleanNo, message: 'Nomor ID Pelanggan / Meter PLN harus 11-12 digit angka.' };
+  }
+
+  // Check valid cache first
+  const now = Date.now();
+  const cached = inquiryCache.get(cleanNo);
+  if (cached && cached.expiresAt > now) {
+    return cached.result;
   }
 
   try {
@@ -53,7 +69,7 @@ export async function inquirePlnCustomer(customerNo: string, supplier?: TopUpPro
       };
     }
 
-    return {
+    const result: PlnInquiryResult = {
       ok: true,
       customerNo: cleanNo,
       maskedName: maskPlnCustomerName(name),
@@ -61,6 +77,11 @@ export async function inquirePlnCustomer(customerNo: string, supplier?: TopUpPro
       subscriberId: data?.subscriber_id ? String(data.subscriber_id) : undefined,
       segmentPower: data?.segment_power ? String(data.segment_power) : undefined,
     };
+
+    // Cache successful inquiry
+    inquiryCache.set(cleanNo, { result, expiresAt: now + CACHE_TTL_MS });
+
+    return result;
   } catch (error) {
     return {
       ok: false,

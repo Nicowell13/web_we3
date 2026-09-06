@@ -4,9 +4,10 @@ import { createDokuPaymentLink } from '../../integrations/doku/client';
 import { handleDokuWebhook, DokuWebhookPayload } from '../../integrations/doku/webhook';
 import { verifyDokuWebhook } from '../../integrations/doku/client';
 import { db } from '../../db';
-import { transactions, products } from '../../db/schema';
+import { transactions, products, gamesCatalog } from '../../db/schema';
 import { and, eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
+import { inquirePlnCustomer } from '../suppliers/pln-inquiry.service';
 
 function generateOrderId() {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -55,6 +56,17 @@ export const paymentRoutes = new Elysia({ prefix: '/api/v1/payment' })
       });
       if (!product || !product.isActive) {
         return new Response(JSON.stringify({ message: 'Product not found or inactive' }), { status: 404 });
+      }
+
+      // If product belongs to PLN, verify customer number server-side
+      const catalog = await db.query.gamesCatalog.findFirst({
+        where: eq(gamesCatalog.id, product.gameId),
+      });
+      if (catalog?.category === 'PLN' || product.gameId === 'pln') {
+        const plnCheck = await inquirePlnCustomer(targetUserId);
+        if (!plnCheck.ok) {
+          return new Response(JSON.stringify({ message: plnCheck.message || 'ID Pelanggan PLN tidak valid' }), { status: 400 });
+        }
       }
 
       const amount      = Math.round(Number(product.sellPrice));
