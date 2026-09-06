@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Smartphone, Zap, Gamepad2, Search, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Smartphone, Zap, Gamepad2, Search, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 
 type Product = {
   id: string;
@@ -22,7 +22,7 @@ const PREFIX_OPERATORS: Record<string, string> = {
   '0831': 'Axis', '0832': 'Axis', '0833': 'Axis', '0838': 'Axis',
   '0895': 'Tri', '0896': 'Tri', '0897': 'Tri', '0898': 'Tri', '0899': 'Tri',
   '0881': 'Smartfren', '0882': 'Smartfren', '0883': 'Smartfren', '0884': 'Smartfren', '0885': 'Smartfren', '0886': 'Smartfren', '0887': 'Smartfren', '0888': 'Smartfren', '0889': 'Smartfren',
-  '0851': 'by.U',
+  '0851': 'Telkomsel',
 };
 
 const OPERATOR_LOGOS: Record<string, string> = {
@@ -33,6 +33,16 @@ const OPERATOR_LOGOS: Record<string, string> = {
   'Tri': '/providers/tri.png',
   'Smartfren': '/providers/smartfren.svg',
   'PLN': '/providers/pln.svg',
+};
+
+// Aliases for strict matching
+const OPERATOR_KEYWORDS: Record<string, string[]> = {
+  'Tri': ['tri', 'three', '3 '],
+  'Telkomsel': ['telkomsel', 'tsel', 'simpati', 'as', 'loop', 'by.u', 'byu'],
+  'Indosat': ['indosat', 'isat', 'im3', 'mentari'],
+  'XL': ['xl', 'extra'],
+  'Axis': ['axis'],
+  'Smartfren': ['smartfren', 'smart'],
 };
 
 export default function QuickOrderWidget({ products }: { products: Product[] }) {
@@ -48,7 +58,7 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
   // Game state
   const [selectedGame, setSelectedGame] = useState('mobile-legends');
   const [gameUserId, setGameUserId] = useState('');
-  const [gameZoneId, setGameZoneId] = useState('');
+  const [gameZoneId, setGameZoneId] = useState('ID');
 
   // Handle phone input & auto-detect
   const handlePhoneChange = (val: string) => {
@@ -62,31 +72,40 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
     }
   };
 
-  // Filter products by active tab & input
+  // Helper strict operator matcher
+  const matchesOperator = (targetStr: string, opName: string) => {
+    const keywords = OPERATOR_KEYWORDS[opName] || [opName.toLowerCase()];
+    const lower = targetStr.toLowerCase();
+    return keywords.some(k => lower.includes(k));
+  };
+
+  // Filter products by active tab & strict input
   const filteredProducts = useMemo(() => {
     if (activeTab === 'pulsa') {
+      if (!phone || phone.length < 4 || !detectedOperator) {
+        return []; // Do not display random products if operator is not detected
+      }
       return products.filter(p => {
         const cat = (p.gameCategory || '').toLowerCase();
         const isPulsa = cat === 'pulsa' || p.denomination.toLowerCase().includes('pulsa');
         if (!isPulsa) return false;
-        if (detectedOperator) {
-          const matchOp = p.denomination.toLowerCase().includes(detectedOperator.toLowerCase()) || (p.gameName || '').toLowerCase().includes(detectedOperator.toLowerCase());
-          return matchOp;
-        }
-        return true;
+        
+        const combined = `${p.gameName || ''} ${p.denomination} ${p.name}`;
+        return matchesOperator(combined, detectedOperator);
       });
     }
 
     if (activeTab === 'data') {
+      if (!phone || phone.length < 4 || !detectedOperator) {
+        return []; // Do not display random products if operator is not detected
+      }
       return products.filter(p => {
         const cat = (p.gameCategory || '').toLowerCase();
         const isData = cat === 'data' || p.denomination.toLowerCase().includes('data') || p.denomination.toLowerCase().includes('gb');
         if (!isData) return false;
-        if (detectedOperator) {
-          const matchOp = p.denomination.toLowerCase().includes(detectedOperator.toLowerCase()) || (p.gameName || '').toLowerCase().includes(detectedOperator.toLowerCase());
-          return matchOp;
-        }
-        return true;
+
+        const combined = `${p.gameName || ''} ${p.denomination} ${p.name}`;
+        return matchesOperator(combined, detectedOperator);
       });
     }
 
@@ -100,12 +119,25 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
     if (activeTab === 'game') {
       return products.filter(p => {
         const gId = (p.gameId || '').toLowerCase();
-        return gId.includes(selectedGame.toLowerCase()) || (p.gameName || '').toLowerCase().includes(selectedGame.toLowerCase());
+        const gName = (p.gameName || '').toLowerCase();
+        const pName = (p.name || '').toLowerCase();
+
+        if (selectedGame === 'mobile-legends') {
+          return gId.includes('mobile-legends') || gName.includes('mobile legends') || (pName.includes('diamond') && !pName.includes('magic chess') && !pName.includes('free fire'));
+        }
+        if (selectedGame === 'free-fire') {
+          return gId.includes('free-fire') || gName.includes('free fire') || pName.includes('free fire');
+        }
+        if (selectedGame === 'magic-chess') {
+          return gId.includes('magic-chess') || gName.includes('magic chess') || pName.includes('magic chess');
+        }
+
+        return gId.includes(selectedGame.toLowerCase()) || gName.includes(selectedGame.toLowerCase());
       });
     }
 
     return products;
-  }, [products, activeTab, detectedOperator, selectedGame]);
+  }, [products, activeTab, phone, detectedOperator, selectedGame]);
 
   return (
     <div className="glass-panel p-5 sm:p-7 rounded-2xl border border-surface-border shadow-2xl relative overflow-hidden">
@@ -181,11 +213,17 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
             </div>
             {detectedOperator ? (
               <p className="text-[11px] text-emerald-400 mt-1.5 flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Operator terdeteksi: <strong>{detectedOperator}</strong>
+                <CheckCircle2 className="w-3.5 h-3.5" /> Operator: <strong>{detectedOperator}</strong>. Menampilkan produk {detectedOperator} saja.
               </p>
             ) : phone.length >= 4 ? (
-              <p className="text-[11px] text-amber-400 mt-1.5">Operator tidak dikenal. Menampilkan semua nominal.</p>
-            ) : null}
+              <p className="text-[11px] text-amber-400 mt-1.5 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" /> Prefix nomor tidak dikenali. Silakan periksa kembali nomor Anda.
+              </p>
+            ) : (
+              <p className="text-[11px] text-slate-400 mt-1.5">
+                Ketik minimal 4 digit nomor HP untuk mendeteksi provider otomatis.
+              </p>
+            )}
           </div>
         )}
 
@@ -223,7 +261,11 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
                 ].map((g) => (
                   <button
                     key={g.id}
-                    onClick={() => setSelectedGame(g.id)}
+                    onClick={() => {
+                      setSelectedGame(g.id);
+                      if (g.id === 'free-fire') setGameZoneId('');
+                      else if (!gameZoneId) setGameZoneId('ID');
+                    }}
                     className={`flex items-center gap-2 p-2 rounded-xl border text-left transition-all ${
                       selectedGame === g.id
                         ? 'bg-primary/10 border-primary text-white shadow-neon-cyan'
@@ -238,9 +280,9 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className={`grid gap-2 ${selectedGame === 'free-fire' ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
               <div>
-                <label className="block text-[11px] text-slate-300 mb-1">User ID</label>
+                <label className="block text-[11px] text-slate-300 mb-1">User ID Game</label>
                 <input
                   type="text"
                   value={gameUserId}
@@ -249,16 +291,18 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
                   className="w-full bg-surface/80 border border-surface-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-mono"
                 />
               </div>
-              <div>
-                <label className="block text-[11px] text-slate-300 mb-1">Zone / Server ID</label>
-                <input
-                  type="text"
-                  value={gameZoneId}
-                  onChange={(e) => setGameZoneId(e.target.value)}
-                  placeholder="Contoh: (2024)"
-                  className="w-full bg-surface/80 border border-surface-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-mono"
-                />
-              </div>
+              {selectedGame !== 'free-fire' && (
+                <div>
+                  <label className="block text-[11px] text-slate-300 mb-1">Zone / Server ID</label>
+                  <input
+                    type="text"
+                    value={gameZoneId}
+                    onChange={(e) => setGameZoneId(e.target.value)}
+                    placeholder="Default: ID"
+                    className="w-full bg-surface/80 border border-surface-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-mono"
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -270,12 +314,25 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
           <h3 className="text-xs font-cyber font-bold text-white uppercase tracking-wider">
             Pilihan Nominal & Paket
           </h3>
-          <span className="text-[10px] text-slate-400">{filteredProducts.length} pilihan tersedia</span>
+          <span className="text-[10px] text-slate-400">
+            {filteredProducts.length > 0 ? `${filteredProducts.length} pilihan tersedia` : ''}
+          </span>
         </div>
 
-        {filteredProducts.length === 0 ? (
+        {(activeTab === 'pulsa' || activeTab === 'data') && (!phone || phone.length < 4 || !detectedOperator) ? (
           <div className="p-8 text-center rounded-xl bg-black/30 border border-surface-border">
-            <p className="text-xs text-slate-400">Tidak ada produk yang cocok untuk filter saat ini.</p>
+            <p className="text-xs text-slate-300 font-medium mb-1">Masukkan Nomor Handphone Terlebih Dahulu</p>
+            <p className="text-[11px] text-slate-500">
+              Sistem akan otomatis menampilkan paket {activeTab === 'pulsa' ? 'pulsa reguler' : 'kuota data'} yang sesuai dengan operator nomor Anda.
+            </p>
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="p-8 text-center rounded-xl bg-black/30 border border-surface-border">
+            <p className="text-xs text-slate-400">
+              {detectedOperator
+                ? `Tidak ada produk ${activeTab} yang aktif untuk ${detectedOperator} saat ini.`
+                : 'Tidak ada produk yang cocok untuk pilihan ini.'}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 max-h-[360px] overflow-y-auto pr-1">
@@ -283,7 +340,7 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
               const targetQuery = new URLSearchParams({
                 ...(phone ? { phone, targetId: phone } : {}),
                 ...(plnId ? { targetId: plnId } : {}),
-                ...(gameUserId ? { targetId: gameUserId, serverId: gameZoneId } : {}),
+                ...(gameUserId ? { targetId: gameUserId, ...(gameZoneId ? { serverId: gameZoneId } : {}) } : {}),
               }).toString();
 
               const checkoutHref = `/checkout/${item.id}${targetQuery ? `?${targetQuery}` : ''}`;
