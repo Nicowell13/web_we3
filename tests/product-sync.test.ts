@@ -32,6 +32,7 @@ describe('[ADMIN-14] Digiflazz product classification', () => {
   it('classifies games', () => {
     expect(classifyDigiflazzProduct({ brand: 'Mobile Legends' }).category).toBe('Game');
     expect(classifyDigiflazzProduct({ brand: 'Free Fire' }).category).toBe('Game');
+    expect(classifyDigiflazzProduct({ brand: 'Moonton', product_name: 'Magic Chess 50 Diamonds' }).category).toBe('Game');
   });
 
   it('classifies pulsa providers', () => {

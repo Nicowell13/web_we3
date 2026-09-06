@@ -14,13 +14,14 @@ export function classifyDigiflazzProduct(item: Record<string, unknown>) {
   const key = normalize(`${brand} ${type} ${name}`);
   const brandKey = normalize(brand);
   const pulsa = new Set(['telkomsel', 'xl', 'axis', 'indosat', 'tri', 'smartfren', 'by-u']);
-  const games = new Set(['mobile-legends', 'free-fire', 'mgcc']);
+  const games = new Set(['mobile-legends', 'free-fire', 'mgcc', 'magic-chess', 'magic-chess-go-go']);
+  const gameNameHints = ['magic-chess', 'mobile-legends', 'free-fire', 'honor-of-kings', 'genshin', 'pubg', 'valorant', 'clash-of-clans', 'clash-royale', 'arena-of-valor', 'call-of-duty'];
   const wallets = new Set(['dana', 'ovo', 'go-pay', 'gopay', 'shopee-pay', 'shopeepay']);
   const groupName = brand || 'Other';
   const subCategory = type || 'Umum';
   if (brandKey === 'pln' || key.includes('token-listrik')) return { category: 'PLN', groupName: 'PLN', subCategory: subCategory === 'Umum' ? 'Token' : subCategory };
   if (pulsa.has(brandKey)) return { category: 'Pulsa', groupName, subCategory };
-  if (games.has(brandKey) || normalize(type).includes('game')) return { category: 'Game', groupName, subCategory };
+  if (games.has(brandKey) || normalize(type).includes('game') || gameNameHints.some((hint) => key.includes(hint))) return { category: 'Game', groupName, subCategory };
   if (wallets.has(brandKey)) return { category: 'E-Wallet', groupName, subCategory };
   if (key.includes('voucher')) return { category: 'Voucher', groupName, subCategory };
   return { category: 'Other', groupName, subCategory };
