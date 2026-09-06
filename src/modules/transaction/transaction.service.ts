@@ -1,5 +1,5 @@
 import { db } from '../../db';
-import { transactions, users, auditTrails } from '../../db/schema';
+import { transactions, users, auditTrails, pointLedger } from '../../db/schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { assertTransition, isTerminal, TxStatus } from './stateMachine';
 import { calculatePoints } from './points.logic';
@@ -35,6 +35,13 @@ async function addUserPoints(userId: string, orderId: string, points: number) {
       .returning({ orderId: transactions.orderId });
     if (claimed.length !== 1) return false;
 
+    await tx.insert(pointLedger).values({
+      userId,
+      type: 'earn',
+      points,
+      referenceId: orderId,
+      description: 'Transaction reward',
+    });
     await tx.update(users).set({
       points: sql`${users.points} + ${points}`,
       updatedAt: new Date(),

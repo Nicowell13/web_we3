@@ -29,6 +29,7 @@ export const transactionStatusEnum = pgEnum('transaction_status', [
 ]);
 
 export const discountTypeEnum = pgEnum('discount_type', ['percentage', 'fixed']);
+export const pointEntryTypeEnum = pgEnum('point_entry_type', ['earn', 'spend', 'adjustment']);
 export const voucherTypeEnum = pgEnum('voucher_type', ['new_user', 'promo', 'loyalty_points']);
 export const articleStatusEnum = pgEnum('article_status', ['draft', 'scheduled', 'published', 'archived']);
 
@@ -210,6 +211,23 @@ export const userVouchers = pgTable(
   ]
 );
 
+export const pointLedger = pgTable(
+  'point_ledger',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    type: pointEntryTypeEnum('type').notNull(),
+    points: integer('points').notNull(),
+    referenceId: text('reference_id').notNull(),
+    description: text('description'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('point_ledger_user_id_idx').on(table.userId),
+    uniqueIndex('point_ledger_type_reference_idx').on(table.type, table.referenceId),
+  ]
+);
+
 // ----------------------------------------------------
 // 5. ARTICLES & EDITORIAL CONTENT
 // ----------------------------------------------------
@@ -294,6 +312,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   transactions: many(transactions),
   vouchers: many(userVouchers),
   articles: many(articles),
+  pointLedger: many(pointLedger),
 }));
 
 export const gamesCatalogRelations = relations(gamesCatalog, ({ many }) => ({

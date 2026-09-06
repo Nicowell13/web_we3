@@ -1,7 +1,7 @@
 import { Elysia } from 'elysia';
 import { authenticate } from '../../middleware/auth';
 import { db } from '../../db';
-import { users } from '../../db/schema';
+import { pointLedger, users } from '../../db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { computeCheckIn } from './checkin.service';
 import { auditTrails } from '../../db/schema';
@@ -32,15 +32,23 @@ export const checkinRoutes = new Elysia({ prefix: '/api/v1' })
     const totalPoints = result.pointsAwarded + result.bonusAwarded;
 
     // Persist: update streak, lastCheckinAt, points atomically
-    await db
-      .update(users)
-      .set({
-        streak:       result.streak,
+    await db.transaction(async (tx) => {
+      await tx.update(users).set({
+        streak: result.streak,
         lastCheckinAt: now,
-        points:       sql`${users.points} + ${totalPoints}`,
-        updatedAt:    now,
-      })
-      .where(eq(users.id, uid));
+        points: sql`${users.points} + ${totalPoints}`,
+        updatedAt: now,
+      }).where(eq(users.id, uid));
+      if (totalPoints > 0) {
+        await tx.insert(pointLedger).values({
+          userId: uid,
+          type: 'earn',
+          points: totalPoints,
+          referenceId: `checkin:${uid}:${now.toISOString().slice(0, 10)}`,
+          description: `Check-in streak ${result.streak}`,
+        });
+      }
+    });
 
     // Audit trail
     await db.insert(auditTrails).values({

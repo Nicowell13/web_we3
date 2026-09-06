@@ -29,6 +29,13 @@
       "when": 1788684758609,
       "tag": "0003_serious_smasher",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788686499606,
+      "tag": "0004_outgoing_prodigy",
+      "breakpoints": true
     }
   ]
 }

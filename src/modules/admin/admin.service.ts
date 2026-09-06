@@ -1,5 +1,5 @@
 import { db } from '../../db';
-import { transactions, auditTrails, systemConfigs } from '../../db/schema';
+import { transactions, auditTrails, pointLedger, systemConfigs, users } from '../../db/schema';
 import { desc, eq, sql } from 'drizzle-orm';
 
 /** Metrics for admin dashboard */
@@ -24,7 +24,24 @@ export async function getAdminMetrics() {
       return map;
     });
 
-  return { totalTransactions: Number(total), totalSales: sales, statusCounts };
+  const [loyalty] = await db.select({
+    outstandingPoints: sql<number>`coalesce(sum(${users.points}), 0)`,
+  }).from(users);
+  const [rewards] = await db.select({
+    pointsAwarded: sql<number>`coalesce(sum(case when ${pointLedger.points} > 0 then ${pointLedger.points} else 0 end), 0)`,
+  }).from(pointLedger);
+  const rewardCost = Number(rewards?.pointsAwarded ?? 0);
+  const rewardCostRate = sales > 0 ? rewardCost / sales : 0;
+
+  return {
+    totalTransactions: Number(total),
+    totalSales: sales,
+    statusCounts,
+    outstandingPoints: Number(loyalty?.outstandingPoints ?? 0),
+    rewardCost,
+    rewardCostRate,
+    rewardCostWithinCap: rewardCostRate <= 0.02,
+  };
 }
 
 /** Paid/pending orders needing operator reconciliation. */

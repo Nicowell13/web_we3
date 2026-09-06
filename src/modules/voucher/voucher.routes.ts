@@ -1,7 +1,7 @@
 import { Elysia } from 'elysia';
 import { authenticate } from '../../middleware/auth';
 import { db } from '../../db';
-import { transactions, vouchers, userVouchers, users } from '../../db/schema';
+import { pointLedger, transactions, vouchers, userVouchers, users } from '../../db/schema';
 import { and, eq, sql } from 'drizzle-orm';
 
 /**
@@ -130,6 +130,13 @@ export async function applyVoucher(orderId: string, voucherCode: string, userId:
         .where(and(eq(users.id, userId), sql`${users.points} >= ${voucher.pointsRequired}`))
         .returning({ id: users.id });
       if (debited.length !== 1) throw new Error('Insufficient loyalty points for voucher');
+      await tx.insert(pointLedger).values({
+        userId,
+        type: 'spend',
+        points: -voucher.pointsRequired,
+        referenceId: `voucher:${voucher.id}:${userId}`,
+        description: `Redeemed voucher ${voucher.code}`,
+      });
     }
   });
 
