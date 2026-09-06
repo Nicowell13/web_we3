@@ -67,6 +67,7 @@ export default function OldSchoolPage() {
   const [productCategory, setProductCategory] = useState('');
   const [productGroup, setProductGroup] = useState('');
   const [productSummary, setProductSummary] = useState<any>(null);
+  const [priceDraft, setPriceDraft] = useState({ sellPrice: '', marginType: 'fixed', marginValue: '' });
   const [vouchers, setVouchers] = useState<AdminVoucher[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [actionMessage, setActionMessage] = useState('');
@@ -168,7 +169,8 @@ export default function OldSchoolPage() {
     const token = await user.getIdToken();
     const res = await fetch(`${apiBase}${path}`, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
     const result = await res.json().catch(() => ({}));
-    setActionMessage(res.ok ? (result.total === undefined ? 'Perubahan tersimpan.' : `Sync selesai: ${result.gamesCreated ?? 0} game, ${result.created} produk baru, ${result.updated} diperbarui, ${result.unchanged} tetap, ${result.failed} gagal dari ${result.total}.`) : (result.message || `Request gagal (${res.status}).`));
+    setActionMessage(res.ok ? (result.product ? `Tersimpan: ${money(result.product.sellPrice)}.` : result.total === undefined ? 'Perubahan tersimpan.' : `Sync selesai: ${result.gamesCreated ?? 0} game, ${result.created} produk baru, ${result.updated} diperbarui, ${result.unchanged} tetap, ${result.failed} gagal dari ${result.total}.`) : (result.message || `Request gagal (${res.status}).`));
+    if (res.ok && result.product) setProducts(current => current.map(product => product.id === result.product.id ? result.product : product));
     if (res.ok) { await verifyAndLoad(); }
     return res.ok;
   };
@@ -368,19 +370,19 @@ export default function OldSchoolPage() {
                 <p className={`text-[10px] font-semibold ${profit(p) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>Profit: {money(profit(p))} ({Number(p.basePrice) ? ((profit(p) / Number(p.basePrice)) * 100).toFixed(1) : '0.0'}%)</p>
               </div>
               <div className="flex gap-2 items-center">
-                <button onClick={() => setEditingProduct(p)} className="text-primary hover:underline">Harga</button>
+                <button onClick={() => { setEditingProduct(p); setPriceDraft({ sellPrice: p.sellPrice, marginType: p.marginType || 'fixed', marginValue: p.marginValue || '' }); }} className="text-primary hover:underline">Harga</button>
                 <button onClick={() => adminAction(`/api/v1/old-school/products/${p.id}`, 'PATCH', { isActive: !p.isActive })} className="text-primary hover:underline">
                   {p.isActive ? 'Disable' : 'Enable'}
                 </button>
               </div>
               {editingProduct?.id === p.id && (
-                <form className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onSubmit={async (e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const sellPrice = String(f.get('sellPrice') || ''); const marginType = String(f.get('marginType') || 'fixed') as 'fixed' | 'percentage'; const marginValue = String(f.get('marginValue') || '0'); await adminAction(`/api/v1/old-school/products/${p.id}`, 'PATCH', { sellPrice, marginType, marginValue }); setEditingProduct(null); }}>
+                <form className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onSubmit={async (e) => { e.preventDefault(); const ok = await adminAction(`/api/v1/old-school/products/${p.id}`, 'PATCH', priceDraft); if (ok) setEditingProduct(null); }}>
                   <div className="glass-panel rounded-xl p-5 w-full max-w-sm space-y-3">
                     <h3 className="text-sm font-semibold text-white">Atur Harga Produk</h3>
                     <p className="text-xs text-slate-300">{p.denomination}</p><p className="text-xs text-slate-400">Harga beli: {money(p.basePrice)} • Harga jual saat ini: {money(p.sellPrice)} • Profit: {money(profit(p))}</p>
-                    <label className="text-xs text-slate-300 block">Harga jual<input name="sellPrice" defaultValue={p.sellPrice} type="number" min="0" step="0.01" required className="mt-1 w-full bg-black/40 border border-surface-border rounded p-2 text-white" /></label>
-                    <label className="text-xs text-slate-300 block">Margin<select name="marginType" defaultValue={p.marginType || 'fixed'} className="mt-1 w-full bg-black/40 border border-surface-border rounded p-2 text-white"><option value="fixed">Fixed (Rp)</option><option value="percentage">Percentage (%)</option></select></label>
-                    <label className="text-xs text-slate-300 block">Nilai margin<input name="marginValue" defaultValue={p.marginValue || ''} type="number" min="0" step="0.01" className="mt-1 w-full bg-black/40 border border-surface-border rounded p-2 text-white" /></label>
+                    <label className="text-xs text-slate-300 block">Harga jual<input name="sellPrice" value={priceDraft.sellPrice} onChange={e => setPriceDraft(v => ({ ...v, sellPrice: e.target.value }))} type="number" min="0" step="0.01" required className="mt-1 w-full bg-black/40 border border-surface-border rounded p-2 text-white" /></label>
+                    <label className="text-xs text-slate-300 block">Margin<select name="marginType" value={priceDraft.marginType} onChange={e => setPriceDraft(v => ({ ...v, marginType: e.target.value }))} className="mt-1 w-full bg-black/40 border border-surface-border rounded p-2 text-white"><option value="fixed">Fixed (Rp)</option><option value="percentage">Percentage (%)</option></select></label>
+                    <label className="text-xs text-slate-300 block">Nilai margin<input name="marginValue" value={priceDraft.marginValue} onChange={e => setPriceDraft(v => ({ ...v, marginValue: e.target.value }))} type="number" min="0" step="0.01" className="mt-1 w-full bg-black/40 border border-surface-border rounded p-2 text-white" /></label>
                     <div className="flex justify-end gap-2"><button type="button" onClick={() => setEditingProduct(null)} className="px-3 py-2 text-xs text-slate-300">Batal</button><button className="px-3 py-2 rounded bg-primary text-black text-xs font-semibold">Simpan</button></div>
                   </div>
                 </form>
