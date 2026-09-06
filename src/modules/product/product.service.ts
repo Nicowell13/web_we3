@@ -13,6 +13,8 @@ export async function getAllActiveProducts(filters?: { category?: string; group?
       denomination: products.denomination,
       sellPrice: products.sellPrice,
       supplierStatus: products.supplierStatus,
+      productType: products.productType,
+      brand: products.brand,
       gameId: products.gameId,
       gameName: gamesCatalog.name,
       gameCategory: gamesCatalog.category,
