@@ -1,5 +1,4 @@
 import { Elysia } from 'elysia';
-import { authenticate } from '../../middleware/auth';
 import { getAllActiveProducts, getProductById } from './product.service';
 
 /**
@@ -15,8 +14,7 @@ export const productRoutes = new Elysia({ prefix: '/api/v1' })
     return { ok: true, products: data };
   })
 
-  // Detailed view – user must be authenticated to see supplier codes, etc.
-  .use(authenticate)
+  // Public detail – returns only public-safe fields.
   .get('/product/:id', async ({ params }) => {
     const product = await getProductById(params.id);
     if (!product) return { ok: false, message: 'Product not found' };

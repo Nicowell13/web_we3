@@ -36,7 +36,6 @@ export async function getProductById(productId: string) {
       denomination: products.denomination,
       sellPrice: products.sellPrice,
       gameId: products.gameId,
-      supplierProductCode: products.supplierProductCode,
       gameName: gamesCatalog.name,
       thumbnailUrl: gamesCatalog.thumbnailUrl,
     })
