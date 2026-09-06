@@ -13,21 +13,46 @@ export function classifyDigiflazzProduct(item: Record<string, unknown>) {
   const name = String(item.product_name ?? item.desc ?? '').trim();
   const key = normalize(`${brand} ${type} ${name}`);
   const brandKey = normalize(brand);
-  const pulsa = new Set(['telkomsel', 'xl', 'axis', 'indosat', 'tri', 'smartfren', 'by-u']);
+  const pulsa = new Set(['telkomsel', 'xl', 'axis', 'indosat', 'tri', 'smartfren', 'by-u', 'byu']);
   const games = new Set(['mobile-legends', 'free-fire', 'mgcc', 'magic-chess', 'magic-chess-go-go']);
   const gameNameHints = ['magic-chess', 'mobile-legends', 'free-fire', 'honor-of-kings', 'genshin', 'pubg', 'valorant', 'clash-of-clans', 'clash-royale', 'arena-of-valor', 'call-of-duty'];
   const wallets = new Set(['dana', 'ovo', 'go-pay', 'gopay', 'shopee-pay', 'shopeepay']);
-  const groupName = brand || 'Other';
   const subCategory = type || 'Umum';
-  if (brandKey === 'pln' || key.includes('token-listrik')) return { category: 'PLN', groupName: 'PLN', subCategory: subCategory === 'Umum' ? 'Token' : subCategory };
-  if (pulsa.has(brandKey)) {
-    const isData = key.includes('data') || key.includes('kuota') || key.includes('internet') || key.includes('gb');
-    return { category: isData ? 'Data' : 'Pulsa', groupName, subCategory };
+
+  if (brandKey === 'pln' || key.includes('token-listrik')) {
+    return { category: 'PLN', groupName: 'PLN', subCategory: subCategory === 'Umum' ? 'Token' : subCategory };
   }
-  if (games.has(brandKey) || normalize(type).includes('game') || gameNameHints.some((hint) => key.includes(hint))) return { category: 'Game', groupName, subCategory };
-  if (wallets.has(brandKey)) return { category: 'E-Wallet', groupName, subCategory };
-  if (key.includes('voucher')) return { category: 'Voucher', groupName, subCategory };
-  return { category: 'Other', groupName, subCategory };
+
+  if (pulsa.has(brandKey)) {
+    // Cek apakah ada indikasi kata paket data / kuota / internet
+    const isData = key.includes('data') || key.includes('kuota') || key.includes('internet') || key.includes('gb') || key.includes('unlimited') || key.includes('combo') || key.includes('flash') || key.includes('freedom');
+    if (isData) {
+      return {
+        category: 'Data',
+        groupName: `${brand} Data`,
+        subCategory: subCategory === 'Umum' ? 'Paket Data' : subCategory,
+      };
+    }
+    return {
+      category: 'Pulsa',
+      groupName: brand,
+      subCategory: subCategory === 'Umum' ? 'Pulsa Reguler' : subCategory,
+    };
+  }
+
+  if (games.has(brandKey) || normalize(type).includes('game') || gameNameHints.some((hint) => key.includes(hint))) {
+    return { category: 'Game', groupName: brand || 'Game', subCategory };
+  }
+
+  if (wallets.has(brandKey)) {
+    return { category: 'E-Wallet', groupName: brand, subCategory };
+  }
+
+  if (key.includes('voucher')) {
+    return { category: 'Voucher', groupName: brand || 'Voucher', subCategory };
+  }
+
+  return { category: 'Other', groupName: brand || 'Other', subCategory };
 }
 
 export function mapDigiflazzProduct(item: Record<string, unknown>) {

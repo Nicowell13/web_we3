@@ -36,22 +36,39 @@ export async function syncDigiflazzProducts(): Promise<SyncResult> {
     const sku = item.buyer_sku_code;
     const basePrice = Number(item.price);
     const brand = item.brand || 'General';
-    const category = item.category || 'Game';
+    const rawCategory = item.category || 'Game';
 
-    // Normalize or match gameId
-    const gameId = brand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'general';
+    // Klasifikasi otomatis berbasis data keyword
+    const key = `${brand} ${item.type || ''} ${item.product_name || ''}`.toLowerCase();
+    const isDataKeyword = key.includes('data') || key.includes('kuota') || key.includes('internet') || key.includes('gb') || key.includes('unlimited') || key.includes('combo') || key.includes('flash') || key.includes('freedom');
+
+    let category = rawCategory;
+    let catalogName = brand;
+    let gameId = brand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'general';
+
+    const pulsaSet = new Set(['telkomsel', 'xl', 'axis', 'indosat', 'tri', 'smartfren', 'by-u', 'byu']);
+    if (pulsaSet.has(gameId)) {
+      if (isDataKeyword) {
+        category = 'Data';
+        catalogName = `${brand} Data`;
+        gameId = `${gameId}-data`;
+      } else {
+        category = 'Pulsa';
+        catalogName = brand;
+      }
+    }
 
     // Ensure parent game/service catalog exists if needed
     if (!catalogMap.has(gameId)) {
       await db.insert(gamesCatalog).values({
         id: gameId,
-        name: brand,
+        name: catalogName,
         publisher: 'Digiflazz Supplier',
         category: category,
-        thumbnailUrl: `/providers/${gameId}.png`,
+        thumbnailUrl: `/providers/${gameId.replace('-data', '')}.png`,
         isActive: true,
       }).onConflictDoNothing();
-      catalogMap.set(gameId, { id: gameId, category, name: brand });
+      catalogMap.set(gameId, { id: gameId, category, name: catalogName });
     }
 
     const existing = await db.query.products.findFirst({

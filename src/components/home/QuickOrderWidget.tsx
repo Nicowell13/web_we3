@@ -169,30 +169,28 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
     if (activeTab === 'pulsa') {
       if (!phone || phone.length < 4 || !detectedOperator) return [];
       list = availableProducts.filter(p => {
-        // Prioritaskan kategori resmi gamesCatalog & type dari response Digiflazz
-        const cat = (p.gameCategory || '').toLowerCase();
-        const pType = (p.productType || '').toLowerCase();
         const brandMatch = (p.brand || p.gameName || '').toLowerCase();
         const matchesOp = matchesOperator(brandMatch, detectedOperator) || matchesOperator(p.name, detectedOperator);
         if (!matchesOp) return false;
 
-        // Validasi eksplisit Pulsa murni (bukan Paket Data / Kuota / Internet)
-        const isData = cat === 'data' || pType === 'data' || pType === 'paket data' || pType === 'internet' || pType.includes('kuota');
-        const isPulsa = cat === 'pulsa' || pType === 'pulsa' || pType === 'umum' || pType === 'reguler';
-        return isPulsa && !isData;
+        // Rule Tegas: Jika mengandung kata data/kuota/gb/internet, BUKAN pulsa reguler
+        const combined = `${p.denomination} ${p.name || ''} ${p.productType || ''} ${p.gameCategory || ''}`.toLowerCase();
+        const hasDataKeyword = combined.includes('data') || combined.includes('kuota') || combined.includes('internet') || combined.includes('gb') || combined.includes('unlimited') || combined.includes('combo') || combined.includes('flash') || combined.includes('freedom');
+
+        return !hasDataKeyword;
       });
     } else if (activeTab === 'data') {
       if (!phone || phone.length < 4 || !detectedOperator) return [];
       list = availableProducts.filter(p => {
-        // Prioritaskan kategori data resmi dari sync API Digiflazz
-        const cat = (p.gameCategory || '').toLowerCase();
-        const pType = (p.productType || '').toLowerCase();
         const brandMatch = (p.brand || p.gameName || '').toLowerCase();
         const matchesOp = matchesOperator(brandMatch, detectedOperator) || matchesOperator(p.name, detectedOperator);
         if (!matchesOp) return false;
 
-        const isData = cat === 'data' || pType === 'data' || pType === 'paket data' || pType === 'internet' || pType.includes('kuota') || p.denomination.toLowerCase().includes('gb') || p.denomination.toLowerCase().includes('unlimited');
-        return isData;
+        // Rule Tegas: Wajib mengandung kata data/kuota/gb/internet
+        const combined = `${p.denomination} ${p.name || ''} ${p.productType || ''} ${p.gameCategory || ''}`.toLowerCase();
+        const hasDataKeyword = combined.includes('data') || combined.includes('kuota') || combined.includes('internet') || combined.includes('gb') || combined.includes('unlimited') || combined.includes('combo') || combined.includes('flash') || combined.includes('freedom');
+
+        return hasDataKeyword;
       });
     } else if (activeTab === 'pln') {
       list = availableProducts.filter(p => {
