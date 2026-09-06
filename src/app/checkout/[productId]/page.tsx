@@ -16,6 +16,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ productId: 
   const [serverId, setServerId] = useState('');
   const [voucher, setVoucher] = useState('');
   const [result, setResult] = useState<any>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // Load product data on mount
   useEffect(() => {
@@ -35,6 +36,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ productId: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setResult(null);
+    setSubmitting(true);
     const payload = {
       orderId: `${Date.now()}_${product.id}`,
       amount: product.sellPrice,
@@ -49,12 +51,13 @@ export default function CheckoutPage({ params }: { params: Promise<{ productId: 
     });
     const json = await res.json();
     setResult(json);
+    setSubmitting(false);
   };
 
   return (
     <div className="max-w-2xl mx-auto p-6 glass-panel border border-surface-border">
       <h1 className="text-2xl font-cyber font-bold text-white mb-4">Checkout – {product.name}</h1>
-      <p className="text-slate-300 mb-2">Harga: Rp {product.sellPrice}</p>
+      <div className="p-4 rounded-xl bg-surface border border-surface-border mb-4"><p className="text-xs text-slate-400">Nominal</p><p className="text-white font-semibold">{product.name}</p><p className="text-primary font-bold text-lg mt-2">Total: Rp {Number(product.sellPrice).toLocaleString('id-ID')}</p></div>
       <p className="text-slate-300 mb-2">Estimasi poin: {estimatedPoints}</p>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -82,13 +85,13 @@ export default function CheckoutPage({ params }: { params: Promise<{ productId: 
             className="w-full px-3 py-2 rounded bg-surface text-white"
           />
         </div>
-        <button type="submit" className="px-4 py-2 bg-primary text-black rounded hover:bg-primary/80 transition">
-          Buat Payment Link
+        <button disabled={submitting} type="submit" className="px-4 py-2 bg-primary text-black rounded hover:bg-primary/80 transition disabled:opacity-50">
+          {submitting ? 'Memproses...' : 'Lanjutkan Pembayaran'}
         </button>
       </form>
       {result && (
         <pre className="mt-4 p-2 bg-surface rounded text-white overflow-x-auto">
-          {JSON.stringify(result, null, 2)}
+          {result.paymentUrl ? <a className="text-primary underline" href={result.paymentUrl}>Buka halaman pembayaran</a> : result.message || 'Transaksi belum dapat diproses.'}
         </pre>
       )}
       <button onClick={() => router.push('/catalog')} className="mt-4 text-primary hover:underline">

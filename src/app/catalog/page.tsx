@@ -10,6 +10,7 @@ export default function CatalogPage() {
   const [loading, setLoading] = useState(true);
   const [cat, setCat] = useState<string>('All');
   const [group, setGroup] = useState<string>('All');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -26,11 +27,11 @@ export default function CatalogPage() {
 
   const categories = ['All', ...new Set(products.map(p => p.gameCategory))];
   const groups = ['All', ...new Set(products.filter(p => cat === 'All' || p.gameCategory === cat).map(p => p.gameName))];
-  const filtered = products.filter(p => (cat === 'All' || p.gameCategory === cat) && (group === 'All' || p.gameName === group));
+  const filtered = products.filter(p => (cat === 'All' || p.gameCategory === cat) && (group === 'All' || p.gameName === group) && `${p.name} ${p.gameName}`.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-4 text-white">Katalog Produk</h1>
+      <div className="flex flex-wrap items-end justify-between gap-3 mb-4"><div><h1 className="text-3xl font-bold text-white">Katalog Produk</h1><p className="text-sm text-slate-400 mt-1">Pilih game, nominal, lalu top up dalam hitungan detik.</p></div><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari game atau nominal..." className="w-full sm:w-64 px-3 py-2 rounded bg-surface border border-surface-border text-white text-sm" /></div>
       <div className="flex gap-2 mb-3 overflow-x-auto">
         {categories.map(c => (
           <button
@@ -54,7 +55,7 @@ export default function CatalogPage() {
             </div>
             <h2 className="font-cyber text-white text-sm mb-1 line-clamp-1">{p.name}</h2>
             <p className="text-xs text-slate-400">{p.gameCategory}</p>
-            <p className="text-primary font-bold mt-2">Rp {p.sellPrice}</p>
+            <div className="flex items-center justify-between mt-2"><p className="text-primary font-bold">Rp {Number(p.sellPrice).toLocaleString('id-ID')}</p><span className="text-[10px] text-secondary">TOP UP →</span></div>
           </Link>
         ))}
       </div>
