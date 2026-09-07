@@ -16,6 +16,6 @@ describe('[FEAT-00] Server Health & ElysiaJS Scaffolding', () => {
     expect(response.status).toBe(200);
 
     const json = await response.json();
-    expect(json.brand).toBe('WETRI.COM');
+    expect(json.brand).toBe('wetri.shop');
   });
 });

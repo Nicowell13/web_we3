@@ -49,7 +49,7 @@ export function Footer() {
         </div>
 
         <div className="pt-8 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500">
-          <p>© {new Date().getFullYear()} WETRI.COM. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} WETRI.SHOP. All rights reserved.</p>
           <p className="flex items-center gap-1 mt-2 sm:mt-0">
             Powered by Next.js, ElysiaJS, Bun & Supabase <Heart className="w-3 h-3 text-secondary fill-secondary" />
           </p>

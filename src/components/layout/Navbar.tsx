@@ -1,5 +1,6 @@
 'use client';
 
+import { getApiBaseUrl } from '@/lib/api-url';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -18,7 +19,7 @@ export function Navbar() {
 
     let cancelled = false;
     user.getIdToken().then((token) =>
-      fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/user/profile`, {
+      fetch(`${getApiBaseUrl()}/api/v1/user/profile`, {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((res) => (res.ok ? res.json() : null))
@@ -41,7 +42,7 @@ export function Navbar() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
           <div className="w-10 h-10 rounded-lg bg-surface border border-primary flex items-center justify-center group-hover:shadow-neon-cyan transition-all duration-300 overflow-hidden p-1">
-            <Image src="/logo.webp" alt="WETRI.COM" width={40} height={40} className="w-full h-full object-contain group-hover:scale-110 transition-transform" priority />
+            <Image src="/logo.webp" alt="WETRI.SHOP" width={40} height={40} className="w-full h-full object-contain group-hover:scale-110 transition-transform" priority />
           </div>
           <div className="flex flex-col">
             <span className="font-cyber font-bold text-xl tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent-purple to-secondary">

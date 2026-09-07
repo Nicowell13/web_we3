@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { getApiBaseUrl } from '@/lib/api-url';
 
 /**
  * Product detail page – fetches a single product by ID.
@@ -6,7 +7,7 @@ import { notFound } from 'next/navigation';
  */
 export default async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/product/${id}`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/v1/product/${id}`, {
     cache: 'no-store',
   });
   const data = (await res.json()) as { ok: boolean; product?: any; message?: string };

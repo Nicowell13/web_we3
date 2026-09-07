@@ -1,5 +1,6 @@
 'use client';
 
+import { getApiBaseUrl } from '@/lib/api-url';
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -33,7 +34,7 @@ function CatalogContent() {
     (async () => {
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/products`,
+          `${getApiBaseUrl()}/api/v1/products`,
           { cache: 'no-store' }
         );
         if (res.ok) {

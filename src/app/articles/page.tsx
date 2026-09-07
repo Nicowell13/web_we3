@@ -1,6 +1,7 @@
 import Link from 'next/link';
+import { getApiBaseUrl } from '@/lib/api-url';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API = getApiBaseUrl();
 export const dynamic = 'force-dynamic';
 
 async function getArticles() {

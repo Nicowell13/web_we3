@@ -1,5 +1,6 @@
 'use client';
 
+import { getApiBaseUrl } from '@/lib/api-url';
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -121,7 +122,7 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
     const timer = setTimeout(async () => {
       setPlnInquiryLoading(true);
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/supplier/inquire-pln`, {
+        const res = await fetch(`${getApiBaseUrl()}/api/v1/supplier/inquire-pln`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ customerNo: clean }),
@@ -263,7 +264,7 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
 
     try {
       const token = await user.getIdToken();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/payment/create-link`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/v1/payment/create-link`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

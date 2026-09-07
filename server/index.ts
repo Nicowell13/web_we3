@@ -26,9 +26,21 @@ import { rankingRoutes } from '../src/modules/ranking/ranking.routes';
 import { startAllSyncs } from '../src/modules/admin/scheduler.service';
 
 const port = Number(process.env.PORT) || 3001;
+const productionOrigin = 'https://wetri.shop';
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || (process.env.NODE_ENV === 'production' ? productionOrigin : 'http://localhost:3000'))
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 export const app = new Elysia()
-  .use(cors())
+  .use(cors({
+    origin: (request) => {
+      const origin = request.headers.get('origin');
+      return !origin || allowedOrigins.includes(origin);
+    },
+    credentials: true,
+    allowedHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key', 'Request-Id', 'Request-Timestamp', 'Signature', 'X-Hub-Signature', 'X-Digiflazz-Event'],
+  }))
 
   // Public routes
   .get('/api/health', () => ({
@@ -38,7 +50,7 @@ export const app = new Elysia()
     env: process.env.NODE_ENV || 'development',
   }))
   .get('/api/v1/config', () => ({
-    brand: 'WETRI.COM',
+    brand: 'wetri.shop',
     tagline: 'Vaporwave & Cyberpunk Top-up Destination',
     version: '1.0.0',
     maintenance: false,

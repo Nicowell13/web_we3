@@ -29,7 +29,7 @@ export async function getDashboardData(userId: string) {
       .insert(users)
       .values({
         id: userId,
-        email: `${userId}@anon.wetri.com`,
+        email: `${userId}@anon.wetri.shop`,
         avatarUrl: fallbackAvatar,
       })
       .onConflictDoUpdate({

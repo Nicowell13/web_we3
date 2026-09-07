@@ -4,6 +4,7 @@ import './globals.css';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { AuthProvider } from '@/context/AuthContext';
+import { SITE_URL } from '@/lib/api-url';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -16,8 +17,17 @@ const orbitron = Orbitron({
 });
 
 export const metadata: Metadata = {
-  title: 'WETRI.COM | Vaporwave & Cyberpunk Top-up Destination',
-  description: 'Top-up game, pulsa, dan voucher kilat dengan tema Cyberpunk, reward poin loyalti & diskon instan.',
+  metadataBase: new URL(SITE_URL),
+  title: 'wetri.shop | Top Up Game, Pulsa, Data & Token PLN',
+  description: 'Top up game, pulsa, paket data, voucher, dan token PLN cepat dengan status transaksi real-time.',
+  alternates: { canonical: '/' },
+  openGraph: {
+    type: 'website',
+    url: SITE_URL,
+    siteName: 'wetri.shop',
+    title: 'wetri.shop | Top Up Game, Pulsa, Data & Token PLN',
+    description: 'Top up produk digital cepat dengan status transaksi real-time.',
+  },
 };
 
 export default function RootLayout({

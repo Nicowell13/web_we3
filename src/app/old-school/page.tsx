@@ -1,5 +1,6 @@
 'use client';
 
+import { getApiBaseUrl } from '@/lib/api-url';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -116,7 +117,7 @@ export default function OldSchoolPage() {
   const [expHour, setExpHour] = useState(23);
   const [expMinute, setExpMinute] = useState(59);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const apiBase = getApiBaseUrl();
 
   const verifyAndLoad = async () => {
     if (!user) {

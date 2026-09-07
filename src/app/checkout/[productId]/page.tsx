@@ -1,5 +1,6 @@
 'use client';
 
+import { getApiBaseUrl } from '@/lib/api-url';
 import { use, useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -34,7 +35,7 @@ function CheckoutContent({ productId }: { productId: string }) {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/product/${productId}`);
+        const res = await fetch(`${getApiBaseUrl()}/api/v1/product/${productId}`);
         const data = await res.json();
         if (data.ok) setProduct(data.product);
         else setError(data.message || 'Produk tidak ditemukan.');
@@ -102,7 +103,7 @@ function CheckoutContent({ productId }: { productId: string }) {
         voucherCode: voucher.trim() || undefined,
       };
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/payment/create-link`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/v1/payment/create-link`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,5 +1,6 @@
 "use client";
 
+import { getApiBaseUrl } from '@/lib/api-url';
 import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -57,7 +58,7 @@ export default function DashboardPage() {
     if (!user) return;
     try {
       const token = await user.getIdToken();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/dashboard`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/v1/dashboard`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const json = await res.json();
@@ -108,7 +109,7 @@ export default function DashboardPage() {
       reader.onload = async () => {
         const base64 = reader.result as string;
         const token = await user.getIdToken();
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/user/avatar`, {
+        const res = await fetch(`${getApiBaseUrl()}/api/v1/user/avatar`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -141,7 +142,7 @@ export default function DashboardPage() {
     setCheckinMsg(null);
     try {
       const token = await user.getIdToken();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/checkin`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/v1/checkin`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -171,7 +172,7 @@ export default function DashboardPage() {
     setClaimMsg(null);
     try {
       const token = await user.getIdToken();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/voucher/claim`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/v1/voucher/claim`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -205,7 +206,7 @@ export default function DashboardPage() {
     const userName = data?.profile?.name || user?.displayName || 'User WETRI';
     const userEmail = data?.profile?.email || user?.email || '-';
 
-    let text = `*Halo Tim CS WETRI.COM*\n`;
+    let text = `*Halo Tim CS WETRI.SHOP*\n`;
     text += `Nama: ${userName}\n`;
     text += `Email: ${userEmail}\n`;
     text += `Kategori: ${supportCategory.toUpperCase()}\n`;
@@ -220,7 +221,7 @@ export default function DashboardPage() {
       text += `Pesan: Saya ingin menanyakan informasi terkait ${supportCategory}.\n`;
     }
 
-    text += `\n_Dikirim dari Dashboard WETRI.COM_`;
+    text += `\n_Dikirim dari Dashboard WETRI.SHOP_`;
 
     const encoded = encodeURIComponent(text);
     window.open(`https://wa.me/${waNumber}?text=${encoded}`, '_blank');
@@ -259,10 +260,10 @@ export default function DashboardPage() {
     );
   }
 
-  // Mask email for privacy / security (e.g. u***r@gmail.com, hides @anon.wetri.com)
+  // Mask email for privacy / security (e.g. u***r@gmail.com, hides @anon.wetri.shop)
   const getMaskedEmail = (emailStr?: string | null) => {
     if (!emailStr) return '';
-    if (emailStr.endsWith('@anon.wetri.com')) {
+    if (emailStr.endsWith('@anon.wetri.shop')) {
       return 'Akun Terverifikasi (Google / Anon)';
     }
     const [name, domain] = emailStr.split('@');

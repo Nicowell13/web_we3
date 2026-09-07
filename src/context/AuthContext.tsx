@@ -1,5 +1,7 @@
 'use client';
 
+import { getApiBaseUrl } from '@/lib/api-url';
+
 import {
   createContext,
   useContext,
@@ -38,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Force fresh token to avoid 401 on first login (client clock/refresh race)
           const token = await u.getIdToken(true);
           setIdToken(token);
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/sync`, {
+          const res = await fetch(`${getApiBaseUrl()}/api/auth/sync`, {
             method: 'POST',
             headers: { Authorization: `Bearer ${token}` },
           });

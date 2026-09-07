@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { getApiBaseUrl } from '@/lib/api-url';
 import {
   Zap,
   Sparkles,
@@ -45,7 +46,7 @@ const FEATURED_GAMES = [
 
 async function getHomeBanner() {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/home-banner`, { cache: 'no-store' });
+    const res = await fetch(`${getApiBaseUrl()}/api/v1/home-banner`, { cache: 'no-store' });
     if (!res.ok) throw new Error('banner unavailable');
     return (await res.json()).banner as {
       title: string;
@@ -71,7 +72,7 @@ export default async function HomePage() {
 
   let rankings: { rank: number; avatarUrl: string | null; score: number }[] = [];
   try {
-    rankings = (await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/rankings/top-spenders`, { cache: 'no-store' }).then(res => res.json())).rankings ?? [];
+    rankings = (await fetch(`${getApiBaseUrl()}/api/v1/rankings/top-spenders`, { cache: 'no-store' }).then(res => res.json())).rankings ?? [];
   } catch {}
 
   const categories = [
