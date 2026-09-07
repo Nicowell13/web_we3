@@ -501,6 +501,17 @@ export default function DashboardPage() {
                         </span>
                       </div>
                       <p className="text-xs text-slate-400 mt-1">Game: {tx.gameId || 'Top Up'}</p>
+                      {tx.status === 'PROCESSING' && (
+                        <div className="mt-2 p-2 rounded-lg bg-primary/10 border border-primary/30 flex items-start gap-2">
+                          <Clock className="w-3.5 h-3.5 text-primary animate-spin shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-[11px] font-bold text-primary">Pesanan Sedang Diproses</p>
+                            <p className="text-[10px] text-slate-300">
+                              Pembayaran diterima. Transaksi tidak gagal dan sedang diteruskan ke provider/supplier. Mohon tunggu beberapa saat.
+                            </p>
+                          </div>
+                        </div>
+                      )}
                       {tx.metadata?.plnToken && (
                         <div className="mt-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
                           <div className="flex items-center justify-between gap-2">
@@ -640,6 +651,17 @@ export default function DashboardPage() {
                         <span className="block text-[11px] text-slate-400">
                           ID: {tx.targetUserId} {tx.targetServerId ? `(${tx.targetServerId})` : ''}
                         </span>
+                        {tx.status === 'PROCESSING' && (
+                          <div className="mt-2 p-2 rounded-lg bg-primary/10 border border-primary/30 max-w-xs flex items-start gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-primary animate-spin shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-[10px] font-bold text-primary">Sedang Diproses Supplier</p>
+                              <p className="text-[10px] text-slate-400 leading-tight">
+                                Transaksi aman & sedang dikirim ke akun Anda.
+                              </p>
+                            </div>
+                          </div>
+                        )}
                         {tx.metadata?.plnToken && (
                           <div className="mt-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 max-w-xs">
                             <div className="flex items-center justify-between gap-1 mb-1">
