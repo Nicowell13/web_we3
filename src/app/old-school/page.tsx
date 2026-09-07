@@ -210,7 +210,7 @@ export default function OldSchoolPage() {
     setActionMessage(res.ok ? (result.product ? `Tersimpan: ${money(result.product.sellPrice)}.` : result.total === undefined ? 'Perubahan tersimpan.' : `Sync selesai: ${result.gamesCreated ?? 0} game, ${result.created} produk baru, ${result.updated} diperbarui, ${result.unchanged} tetap, ${result.failed} gagal dari ${result.total}.`) : (result.message || `Request gagal (${res.status}).`));
     if (res.ok && result.product) setProducts(current => current.map(product => product.id === result.product.id ? result.product : product));
     if (res.ok) { await verifyAndLoad(); }
-    return res.ok;
+    return res.ok ? result : null;
   };
 
   const handleUpdateConfig = async (key: string, value: string) => {

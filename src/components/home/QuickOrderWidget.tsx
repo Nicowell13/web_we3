@@ -24,8 +24,8 @@ type Product = {
   denomination: string;
   sellPrice: string;
   supplierStatus?: string;
-  productType?: string;
-  brand?: string;
+  productType?: string | null;
+  brand?: string | null;
   gameId: string;
   gameName?: string;
   gameCategory?: string;

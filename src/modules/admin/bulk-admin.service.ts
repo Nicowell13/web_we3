@@ -46,6 +46,7 @@ export async function bulkUpdateProductStatus(params: {
   }
 
   await db.insert(auditTrails).values({
+    referenceId: `bulk-status-${Date.now()}`,
     eventType: 'ADMIN_BULK_STATUS_UPDATE',
     rawRequest: params as any,
     rawResponse: { affectedCount: targetProductIds.length },
@@ -102,6 +103,7 @@ export async function bulkUpdateProductMargin(params: {
   }
 
   await db.insert(auditTrails).values({
+    referenceId: `bulk-margin-${Date.now()}`,
     eventType: 'ADMIN_BULK_MARGIN_UPDATE',
     rawRequest: params as any,
     rawResponse: { affectedCount: updatedCount },

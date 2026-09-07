@@ -12,7 +12,7 @@ export async function listFailedOrActionOrders() {
       orderId: transactions.orderId,
       userId: transactions.userId,
       productId: transactions.productId,
-      productName: products.name,
+      productName: products.denomination,
       denomination: products.denomination,
       supplierProductCode: products.supplierProductCode,
       targetUserId: transactions.targetUserId,

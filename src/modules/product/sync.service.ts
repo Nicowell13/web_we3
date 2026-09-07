@@ -16,6 +16,7 @@ export type SyncResult = {
  */
 export async function syncDigiflazzProducts(): Promise<SyncResult> {
   const supplier = await getActiveSupplier();
+  if (!supplier.getProducts) throw new Error('Active supplier does not support product sync');
   const rawList = await supplier.getProducts();
 
   let updatedCount = 0;
@@ -122,6 +123,7 @@ export async function syncDigiflazzProducts(): Promise<SyncResult> {
   }
 
   await db.insert(auditTrails).values({
+    referenceId: `product-sync-${Date.now()}`,
     eventType: 'DIGIFLAZZ_PRODUCTS_SYNCED',
     rawResponse: {
       totalFetched: rawList.length,

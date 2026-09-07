@@ -52,7 +52,12 @@ export async function listAdminProducts(search?: string, active?: boolean, suppl
 export async function updateAdminProduct(id: string, patch: { isActive?: boolean; sellPrice?: string; marginType?: 'fixed' | 'percentage' | null; marginValue?: string | null }) {
   const current = await db.query.products.findFirst({ where: eq(products.id, id), columns: { id: true, basePrice: true } });
   if (!current) return null;
-  await db.update(products).set({ ...patch, updatedAt: new Date() }).where(eq(products.id, id)).returning(productColumns);
+  await db.update(products).set({
+    ...patch,
+    marginType: patch.marginType ?? undefined,
+    marginValue: patch.marginValue ?? undefined,
+    updatedAt: new Date(),
+  }).where(eq(products.id, id)).returning(productColumns);
   const [updated] = await db.select(columns).from(products).innerJoin(gamesCatalog, eq(products.gameId, gamesCatalog.id)).where(eq(products.id, id)).limit(1);
   await db.insert(auditTrails).values({ eventType: 'PRODUCT_CHANGE', referenceId: id, rawRequest: patch });
   return updated;

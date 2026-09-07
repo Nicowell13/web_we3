@@ -32,20 +32,30 @@ export const supplierPublicRoutes = new Elysia({ prefix: '/api/v1/supplier' })
     return result;
   })
   .post('/digiflazz/webhook', async ({ body, headers, set }) => {
-    const signature = headers['x-hub-signature'] || headers['x-digiflazz-signature'];
-    const webhookSecret = process.env.DIGIFLAZZ_WEBHOOK_SECRET || process.env.DIGIFLAZZ_API_KEY || '';
-
-    // If secret configured, verify signature
-    if (webhookSecret && signature) {
-      const rawString = typeof body === 'string' ? body : JSON.stringify(body);
-      const isValid = verifyDigiflazzWebhookSha1(rawString, webhookSecret, signature);
-      if (!isValid) {
-        set.status = 401;
-        return { ok: false, message: 'Invalid webhook signature' };
-      }
+    const signature = headers['x-hub-signature'];
+    const webhookSecret = process.env.DIGIFLAZZ_WEBHOOK_SECRET || '';
+    if (!webhookSecret) {
+      set.status = 503;
+      return { ok: false, message: 'Webhook secret is not configured' };
+    }
+    if (!signature) {
+      set.status = 401;
+      return { ok: false, message: 'Missing webhook signature' };
     }
 
-    const payload = (typeof body === 'string' ? JSON.parse(body) : body) as DigiflazzWebhookPayload;
+    const rawString = String(body);
+    if (!verifyDigiflazzWebhookSha1(rawString, webhookSecret, signature)) {
+      set.status = 401;
+      return { ok: false, message: 'Invalid webhook signature' };
+    }
+
+    let payload: DigiflazzWebhookPayload;
+    try {
+      payload = JSON.parse(rawString) as DigiflazzWebhookPayload;
+    } catch {
+      set.status = 400;
+      return { ok: false, message: 'Invalid JSON payload' };
+    }
     const data = payload?.data;
     if (!data?.ref_id) {
       set.status = 400;
@@ -121,7 +131,7 @@ export const supplierPublicRoutes = new Elysia({ prefix: '/api/v1/supplier' })
       sn: data.sn,
       plnToken: plnDetails?.tokenNumber,
     };
-  });
+  }, { parse: 'text' });
 
 /**
  * Admin-only supplier routes.

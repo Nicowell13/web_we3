@@ -41,6 +41,7 @@ export async function runScheduledMidnightSync(): Promise<void> {
       });
 
     await db.insert(auditTrails).values({
+      referenceId: 'scheduled-midnight-sync',
       eventType: 'DIGIFLAZZ_MIDNIGHT_SYNC_SUCCESS',
       rawResponse: result,
     });
@@ -48,6 +49,7 @@ export async function runScheduledMidnightSync(): Promise<void> {
   } catch (err: any) {
     console.error('[AUTO-SYNC] Midnight sync failed:', err?.message);
     await db.insert(auditTrails).values({
+      referenceId: 'scheduled-midnight-sync',
       eventType: 'DIGIFLAZZ_MIDNIGHT_SYNC_FAILED',
       rawResponse: { error: err?.message || 'Unknown auto-sync error' },
     });
