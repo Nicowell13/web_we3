@@ -501,6 +501,29 @@ export default function DashboardPage() {
                         </span>
                       </div>
                       <p className="text-xs text-slate-400 mt-1">Game: {tx.gameId || 'Top Up'}</p>
+                      {tx.metadata?.plnToken && (
+                        <div className="mt-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                              <Zap className="w-3 h-3 text-amber-400" /> Token Listrik PLN
+                            </span>
+                            <button
+                              onClick={() => copyToClipboard(tx.metadata.plnToken.tokenNumber)}
+                              className="text-[10px] text-amber-300 hover:text-white underline font-mono flex items-center gap-1"
+                            >
+                              {copiedId === tx.metadata.plnToken.tokenNumber ? 'Tersalin!' : 'Salin Token'}
+                            </button>
+                          </div>
+                          <p className="font-mono font-bold text-amber-300 text-xs mt-0.5 tracking-wider">
+                            {tx.metadata.plnToken.tokenNumber}
+                          </p>
+                          {tx.metadata.plnToken.customerName && (
+                            <p className="text-[10px] text-slate-400 mt-0.5">
+                              {tx.metadata.plnToken.customerName} {tx.metadata.plnToken.tariffPower ? `(${tx.metadata.plnToken.tariffPower})` : ''}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="font-bold text-sm text-white">Rp {Number(tx.amount).toLocaleString('id-ID')}</p>
@@ -617,6 +640,29 @@ export default function DashboardPage() {
                         <span className="block text-[11px] text-slate-400">
                           ID: {tx.targetUserId} {tx.targetServerId ? `(${tx.targetServerId})` : ''}
                         </span>
+                        {tx.metadata?.plnToken && (
+                          <div className="mt-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 max-w-xs">
+                            <div className="flex items-center justify-between gap-1 mb-1">
+                              <span className="text-[10px] font-bold text-amber-400 flex items-center gap-1">
+                                <Zap className="w-3 h-3 text-amber-400" /> Token PLN
+                              </span>
+                              <button
+                                onClick={() => copyToClipboard(tx.metadata.plnToken.tokenNumber)}
+                                className="text-[10px] text-amber-300 hover:text-white underline font-mono"
+                              >
+                                {copiedId === tx.metadata.plnToken.tokenNumber ? 'Tersalin' : 'Salin'}
+                              </button>
+                            </div>
+                            <p className="font-mono font-bold text-amber-300 text-xs tracking-wider">
+                              {tx.metadata.plnToken.tokenNumber}
+                            </p>
+                            {tx.metadata.plnToken.customerName && (
+                              <p className="text-[10px] text-slate-400 mt-0.5">
+                                {tx.metadata.plnToken.customerName} {tx.metadata.plnToken.tariffPower ? `(${tx.metadata.plnToken.tariffPower})` : ''}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="py-3.5 px-4 text-sm font-bold text-white font-mono">
                         Rp {Number(tx.amount).toLocaleString('id-ID')}
