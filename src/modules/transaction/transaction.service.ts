@@ -9,7 +9,7 @@ import { rewardReferral } from '../user/referral.service';
 // ── Repo helpers (injectable for testing) ────────────────────────────────────
 export async function findTx(orderId: string) {
   const rows = await db
-    .select({ transaction: transactions, supplierProductCode: products.supplierProductCode })
+    .select({ transaction: transactions, supplierProductCode: products.supplierProductCode, basePrice: products.basePrice })
     .from(transactions)
     .innerJoin(products, eq(transactions.productId, products.id))
     .where(eq(transactions.orderId, orderId))
@@ -121,9 +121,17 @@ export async function advanceTransaction(
 
     const supplier = await _getSupplier().catch(() => null);
     const supplierProductCode = (tx as any).supplierProductCode;
+    const basePrice = Number((tx as any).basePrice);
+    const maxPrice = Math.round(Number(tx.originalAmount ?? tx.amount));
     const customerNo = tx.targetServerId ? `${tx.targetUserId}${tx.targetServerId}` : tx.targetUserId;
 
-    if (!supplier || !supplierProductCode) {
+    if (Number.isFinite(basePrice) && basePrice > maxPrice) {
+      lastErrorMsg = `Harga supplier Rp${basePrice} melebihi batas transaksi Rp${maxPrice}`;
+      await _setStatus(orderId, 'PROCESSING', {
+        metadata: { lastSupplierError: { message: lastErrorMsg, timestamp: new Date().toISOString() }, needsAdminAction: true },
+      } as any);
+      await _audit('SUPPLIER_PRICE_VALIDATION_FAILED', orderId, { basePrice, maxPrice }, null);
+    } else if (!supplier || !supplierProductCode) {
       lastErrorMsg = !supplier ? 'Supplier adapter not available' : 'Supplier product code missing';
       await _setStatus(orderId, 'PROCESSING', {
         metadata: {
@@ -140,7 +148,8 @@ export async function advanceTransaction(
             supplierProductCode,
             customerNo,
             Number(tx.amount),
-            orderId
+            orderId,
+            maxPrice
           );
           finalResp = resp;
           supplierRef = resp?.ref_id ?? resp?.data?.ref_id ?? orderId;

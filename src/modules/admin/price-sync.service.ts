@@ -2,7 +2,7 @@ import { db } from '../../db';
 import { products, gamesCatalog, auditTrails } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import { getActiveSupplier } from '../suppliers/supplierFactory';
-import { calculateSellPrice, MarginType } from './pricing.service';
+import { calculateSellPrice, MarginType } from '../product/pricing.service';
 
 /**
  * Price Sync – runs every 4 hours.
@@ -85,6 +85,7 @@ export async function runPriceSync() {
 
   await db.insert(auditTrails).values({
     eventType: 'DIGIFLAZZ_PRICE_SYNC_SUCCESS',
+    referenceId: 'scheduled-price-sync',
     rawResponse: { updated, inserted, recalculated },
   });
 

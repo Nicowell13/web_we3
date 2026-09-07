@@ -67,7 +67,7 @@ export class DigiflazzAdapter implements TopUpProvider {
     });
   }
 
-  async createOrder(productSku: string, targetId: string, _amount?: number, orderRef?: string) {
+  async createOrder(productSku: string, targetId: string, _amount?: number, orderRef?: string, maxPrice?: number) {
     const refId = orderRef ?? `WETRI-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
     const sign = makeSignature(this.username, this.apiKey, refId);
     return post('/transaction', {
@@ -77,6 +77,7 @@ export class DigiflazzAdapter implements TopUpProvider {
       ref_id: refId,
       sign,
       testing: process.env.DIGIFLAZZ_ENV === 'dev',
+      ...(maxPrice !== undefined ? { max_price: maxPrice } : {}),
     });
   }
 

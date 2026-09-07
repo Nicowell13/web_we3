@@ -19,7 +19,7 @@ export interface TopUpProvider {
    * @param targetId   player/account identifier
    * @param amount     nominal amount (optional; many suppliers infer from SKU)
    */
-  createOrder(productSku: string, targetId: string, amount?: number, orderRef?: string): Promise<any>;
+  createOrder(productSku: string, targetId: string, amount?: number, orderRef?: string, maxPrice?: number): Promise<any>;
 
   /**
    * Check order status by supplier order reference.

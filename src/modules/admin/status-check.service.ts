@@ -27,17 +27,21 @@ export async function runStatusCheck() {
     const statusOk = !raw.status || ['available', 'normal'].includes(String(raw.status).toLowerCase());
     const shouldBeActive = buyerOk && sellerOk && statusOk;
 
-    if (shouldBeActive && !existing.isActive) {
-      await db.update(products).set({ isActive: true }).where(eq(products.id, existing.id));
-      activated++;
-    } else if (!shouldBeActive && existing.isActive) {
-      await db.update(products).set({ isActive: false, supplierStatus: 'off' }).where(eq(products.id, existing.id));
-      deactivated++;
+    const supplierStatus = shouldBeActive ? 'available' : 'off';
+    if (existing.supplierStatus !== supplierStatus) {
+      await db.update(products).set({
+        supplierStatus,
+        ...(!shouldBeActive && existing.isActive ? { isActive: false } : {}),
+        syncedAt: new Date(),
+        updatedAt: new Date(),
+      }).where(eq(products.id, existing.id));
+      if (shouldBeActive) activated++; else deactivated++;
     }
   }
 
   await db.insert(auditTrails).values({
     eventType: 'DIGIFLAZZ_STATUS_CHECK',
+    referenceId: 'scheduled-status-check',
     rawResponse: { deactivated, activated },
   });
 
