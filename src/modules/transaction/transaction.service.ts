@@ -123,7 +123,14 @@ export async function advanceTransaction(
     const supplierProductCode = (tx as any).supplierProductCode;
     const basePrice = Number((tx as any).basePrice);
     const maxPrice = Math.round(Number(tx.originalAmount ?? tx.amount));
-    const customerNo = tx.targetServerId ? `${tx.targetUserId}${tx.targetServerId}` : tx.targetUserId;
+    const baseCustomerNo = tx.targetServerId ? `${tx.targetUserId}${tx.targetServerId}` : tx.targetUserId;
+    const fallbackCustomerNo = tx.targetServerId ? `${tx.targetUserId}|${tx.targetServerId}` : tx.targetUserId;
+    const formats = tx.targetServerId ? [baseCustomerNo, fallbackCustomerNo] : [baseCustomerNo];
+
+    const isFormatReject = (value: unknown) => {
+      const text = String(value ?? '').toLowerCase();
+      return /customer|format|no tujuan|target|user id|server id|zone|idpel|meter|invalid/.test(text);
+    };
 
     if (Number.isFinite(basePrice) && basePrice > maxPrice) {
       lastErrorMsg = `Harga supplier Rp${basePrice} melebihi batas transaksi Rp${maxPrice}`;
@@ -142,8 +149,10 @@ export async function advanceTransaction(
       await _audit('SUPPLIER_ORDER_FAILED', orderId, null, { error: lastErrorMsg });
     } else {
       const maxAttempts = 3; // 1 initial + 2 retries
+      let formatIndex = 0;
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
+          const customerNo = formats[formatIndex] ?? baseCustomerNo;
           const resp = await supplier.createOrder(
             supplierProductCode,
             customerNo,
@@ -163,6 +172,15 @@ export async function advanceTransaction(
           } else if (statusStr === 'gagal') {
             finalFulfillmentStatus = 'FAILED';
             lastErrorMsg = resp?.message ?? resp?.data?.message ?? 'Digiflazz order failed';
+            if (tx.targetServerId && formatIndex === 0 && isFormatReject(lastErrorMsg)) {
+              formatIndex = 1;
+              finalFulfillmentStatus = 'PROCESSING';
+              lastErrorMsg = 'Retrying with split user_id and zone_id format';
+              if (attempt < maxAttempts) {
+                await new Promise((r) => setTimeout(r, 100));
+                continue;
+              }
+            }
             break; // Terminal rejection by supplier, no transient retry
           } else {
             // Pending status from supplier
@@ -176,6 +194,10 @@ export async function advanceTransaction(
         } catch (err: any) {
           lastErrorMsg = err?.message || 'Supplier connection error';
           finalFulfillmentStatus = 'PROCESSING';
+          if (tx.targetServerId && formatIndex === 0 && isFormatReject(lastErrorMsg)) {
+            formatIndex = 1;
+            lastErrorMsg = 'Retrying with split user_id and zone_id format';
+          }
           if (attempt < maxAttempts) {
             await new Promise((r) => setTimeout(r, 100));
           }
