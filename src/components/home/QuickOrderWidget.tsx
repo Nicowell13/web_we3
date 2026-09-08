@@ -531,6 +531,25 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
         )}
       </div>
 
+      {selectedProduct && (
+        <div className="pt-2 border-t border-surface-border flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2">
+          <div className="text-xs text-slate-300">
+            <span>Item Terpilih: </span>
+            <strong className="text-white font-mono">{selectedProduct.denomination}</strong>
+            <span className="text-primary font-mono font-bold ml-2">Rp {Number(selectedProduct.sellPrice).toLocaleString('id-ID')}</span>
+          </div>
+
+          <button
+            disabled={!isTargetFilled()}
+            onClick={handleStartCheckout}
+            className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-cyber font-bold text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-neon-cyan bg-primary text-black hover:bg-white active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:bg-primary"
+          >
+            <span>BELI SEKARANG</span>
+            <Zap className="w-3.5 h-3.5 fill-current" />
+          </button>
+        </div>
+      )}
+
       {/* Recommended Products Grid with Promo Badges */}
       <div>
         <div className="flex items-center justify-between mb-3">
@@ -555,7 +574,7 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
             <p className="text-xs text-slate-400">Belum ada denom aktif untuk pilihan ini.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 min-[380px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {filteredProducts.map((p, idx) => {
               const isSelected = selectedProductId === p.id;
               const sellPriceNum = Number(p.sellPrice);
@@ -607,26 +626,6 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
           </div>
         )}
       </div>
-
-      {/* Floating Action Button for Instant Checkout */}
-      {selectedProduct && (
-        <div className="pt-2 border-t border-surface-border flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2">
-          <div className="text-xs text-slate-300">
-            <span>Item Terpilih: </span>
-            <strong className="text-white font-mono">{selectedProduct.denomination}</strong>
-            <span className="text-primary font-mono font-bold ml-2">Rp {Number(selectedProduct.sellPrice).toLocaleString('id-ID')}</span>
-          </div>
-
-          <button
-            disabled={!isTargetFilled()}
-            onClick={handleStartCheckout}
-            className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-cyber font-bold text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-neon-cyan bg-primary text-black hover:bg-white active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:bg-primary"
-          >
-            <span>BELI SEKARANG</span>
-            <Zap className="w-3.5 h-3.5 fill-current" />
-          </button>
-        </div>
-      )}
 
       {/* Direct In-Page DOKU Payment Dialogbox Modal */}
       {showCheckoutModal && selectedProduct && (
