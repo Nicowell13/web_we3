@@ -15,6 +15,28 @@ body {
   overflow-x: hidden;
 }
 
+/* DOKU injects this cross-origin checkout shell into document.body. */
+#jokul_checkout_modal {
+  height: 100dvh !important;
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)) !important;
+  box-sizing: border-box;
+}
+#jokul_checkout_modal .jokul-content,
+#jokul_checkout_modal iframe {
+  width: min(100%, 500px) !important;
+  height: 100% !important;
+  max-height: 100dvh;
+}
+@media (max-width: 575.98px) {
+  #jokul_checkout_modal {
+    padding: 0 !important;
+  }
+  #jokul_checkout_modal iframe {
+    width: 100% !important;
+    border-radius: 0 !important;
+  }
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

@@ -49,18 +49,23 @@ const OPERATOR_LOGOS: Record<string, string> = {
   'Indosat': '/providers/indosat.svg',
   'XL': '/providers/xl.svg',
   'Axis': '/providers/axis.svg',
-  'Tri': '/providers/tri.png',
+  'Tri': '/providers/tri.svg',
   'Smartfren': '/providers/smartfren.svg',
   'PLN': '/providers/pln.svg',
 };
 
-const OPERATOR_KEYWORDS: Record<string, string[]> = {
-  'Tri': ['tri', 'three', '3 '],
-  'Telkomsel': ['telkomsel', 'tsel', 'simpati', 'as', 'loop', 'by.u', 'byu'],
-  'Indosat': ['indosat', 'isat', 'im3', 'mentari'],
-  'XL': ['xl', 'extra'],
-  'Axis': ['axis'],
-  'Smartfren': ['smartfren', 'smart'],
+const OPERATOR_BRANDS: Record<string, string[]> = {
+  Tri: ['tri', 'three'],
+  Telkomsel: ['telkomsel', 'tsel', 'simpati', 'as', 'loop', 'by.u', 'byu'],
+  Indosat: ['indosat', 'isat', 'im3', 'mentari'],
+  XL: ['xl'],
+  Axis: ['axis'],
+  Smartfren: ['smartfren'],
+};
+
+export const matchesOperatorBrand = (product: Product, operator: string) => {
+  const brand = (product.brand || product.gameName || '').trim().toLowerCase();
+  return (OPERATOR_BRANDS[operator] || [operator.toLowerCase()]).includes(brand);
 };
 
 export default function QuickOrderWidget({ products }: { products: Product[] }) {
@@ -156,12 +161,6 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
     }
   };
 
-  const matchesOperator = (targetStr: string, opName: string) => {
-    const keywords = OPERATOR_KEYWORDS[opName] || [opName.toLowerCase()];
-    const lower = targetStr.toLowerCase();
-    return keywords.some(k => lower.includes(k));
-  };
-
   const availableProducts = useMemo(() => {
     return (products || []).filter(p => !p.supplierStatus || p.supplierStatus === 'available');
   }, [products]);
@@ -171,9 +170,7 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
     if (activeTab === 'pulsa') {
       if (!phone || phone.length < 4 || !detectedOperator) return [];
       list = availableProducts.filter(p => {
-        const brandMatch = (p.brand || p.gameName || '').toLowerCase();
-        const matchesOp = matchesOperator(brandMatch, detectedOperator) || matchesOperator(p.name, detectedOperator);
-        if (!matchesOp) return false;
+        if (!matchesOperatorBrand(p, detectedOperator)) return false;
 
         // Rule Tegas: Jika mengandung kata data/kuota/gb/internet, BUKAN pulsa reguler
         const combined = `${p.denomination} ${p.name || ''} ${p.productType || ''} ${p.gameCategory || ''}`.toLowerCase();
@@ -184,9 +181,7 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
     } else if (activeTab === 'data') {
       if (!phone || phone.length < 4 || !detectedOperator) return [];
       list = availableProducts.filter(p => {
-        const brandMatch = (p.brand || p.gameName || '').toLowerCase();
-        const matchesOp = matchesOperator(brandMatch, detectedOperator) || matchesOperator(p.name, detectedOperator);
-        if (!matchesOp) return false;
+        if (!matchesOperatorBrand(p, detectedOperator)) return false;
 
         // Rule Tegas: Wajib mengandung kata data/kuota/gb/internet
         const combined = `${p.denomination} ${p.name || ''} ${p.productType || ''} ${p.gameCategory || ''}`.toLowerCase();
