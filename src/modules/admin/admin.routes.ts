@@ -68,7 +68,7 @@ export const adminRoutes = new Elysia({ prefix: '/api/v1/old-school' })
     if (!/^[A-Z0-9_-]{3,40}$/.test(input.code ?? '') || !['fixed', 'percentage'].includes(input.discountType) || Number(input.discountValue) <= 0 || Number(input.quota) < 0 || !input.expiresAt) {
       set.status = 400; return { ok: false, message: 'Invalid voucher payload' };
     }
-    try { return { ok: true, voucher: await createAdminVoucher({ ...input, code: input.code.toUpperCase(), discountValue: String(input.discountValue), minPurchase: String(input.minPurchase ?? 0), maxDiscount: input.maxDiscount == null ? null : String(input.maxDiscount), quota: Number(input.quota), pointsRequired: Number(input.pointsRequired ?? 0), expiresAt: new Date(input.expiresAt) }) }; }
+    try { return { ok: true, voucher: await createAdminVoucher({ ...input, code: input.code.toUpperCase(), discountValue: String(input.discountValue), minPurchase: String(input.minPurchase ?? 0), maxDiscount: input.maxDiscount == null ? null : String(input.maxDiscount), quota: Number(input.quota), dailyLimit: input.dailyLimit == null ? null : Number(input.dailyLimit), pointsRequired: Number(input.pointsRequired ?? 0), targetUserId: input.targetUserId || null, isPublic: Boolean(input.isPublic ?? !input.targetUserId), startAt: input.startAt ? new Date(input.startAt) : new Date(), expiresAt: new Date(input.expiresAt) }) }; }
     catch { set.status = 409; return { ok: false, message: 'Voucher code already exists or payload conflicts' }; }
   })
   .post('/vouchers/create-compensation', async ({ body, set }) => {
@@ -97,8 +97,10 @@ export const adminRoutes = new Elysia({ prefix: '/api/v1/old-school' })
     const input = body as any;
     const patch: any = {};
     for (const key of ['discountValue', 'minPurchase', 'maxDiscount']) if (input[key] !== undefined) patch[key] = input[key] == null ? null : String(input[key]);
-    for (const key of ['quota', 'pointsRequired']) if (input[key] !== undefined) patch[key] = Number(input[key]);
+    for (const key of ['quota', 'pointsRequired', 'dailyLimit']) if (input[key] !== undefined) patch[key] = input[key] == null ? null : Number(input[key]);
+    if (input.targetUserId !== undefined) patch.targetUserId = input.targetUserId || null;
     for (const key of ['isActive', 'isPublic']) if (input[key] !== undefined) patch[key] = Boolean(input[key]);
+    if (input.startAt !== undefined) patch.startAt = new Date(input.startAt);
     if (input.expiresAt !== undefined) patch.expiresAt = new Date(input.expiresAt);
     if (input.discountType !== undefined) { if (!['fixed', 'percentage'].includes(input.discountType)) { set.status = 400; return { ok: false, message: 'Invalid discountType' }; } patch.discountType = input.discountType; }
     const voucher = await updateAdminVoucher(params.id, patch);

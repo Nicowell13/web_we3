@@ -15,6 +15,7 @@ const columns = {
   dailyLimit: vouchers.dailyLimit,
   pointsRequired: vouchers.pointsRequired,
   isPublic: vouchers.isPublic,
+  targetUserId: vouchers.targetUserId,
   startAt: vouchers.startAt,
   expiresAt: vouchers.expiresAt,
   isActive: vouchers.isActive,

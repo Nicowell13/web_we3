@@ -1,6 +1,6 @@
 import { db } from '../../db';
 import { users, transactions, userVouchers, vouchers, gamesCatalog, products } from '../../db/schema';
-import { eq, desc, and, gte, sql } from 'drizzle-orm';
+import { eq, desc, and, sql, or, lt, gt, notInArray } from 'drizzle-orm';
 import { createDefaultAvatar } from '../../lib/cloudinary';
 
 export interface TimelineItem {
@@ -94,12 +94,18 @@ export async function getDashboardData(userId: string) {
     .where(eq(userVouchers.userId, userId))
     .orderBy(desc(userVouchers.obtainedAt));
 
-  // 4. Available public vouchers ready to be claimed
+  // 4. Available vouchers ready to be claimed by this user
   const now = new Date();
+  const claimedVoucherIds = ownedVouchers.map((voucher) => voucher.voucherId);
+  const previousSuccess = await db.query.transactions.findFirst({
+    where: and(eq(transactions.userId, userId), eq(transactions.status, 'SUCCESS')),
+    columns: { orderId: true },
+  });
   const availableVouchers = await db
     .select({
       id: vouchers.id,
       code: vouchers.code,
+      voucherType: vouchers.voucherType,
       discountType: vouchers.discountType,
       discountValue: vouchers.discountValue,
       maxDiscount: vouchers.maxDiscount,
@@ -107,13 +113,20 @@ export async function getDashboardData(userId: string) {
       pointsRequired: vouchers.pointsRequired,
       quota: vouchers.quota,
       quotaUsed: vouchers.quotaUsed,
+      targetUserId: vouchers.targetUserId,
       expiresAt: vouchers.expiresAt,
     })
     .from(vouchers)
     .where(
       and(
         eq(vouchers.isActive, true),
-        gte(vouchers.expiresAt, now)
+        lt(vouchers.startAt, now),
+        gt(vouchers.expiresAt, now),
+        sql`${vouchers.quotaUsed} < ${vouchers.quota}`,
+        or(eq(vouchers.isPublic, true), eq(vouchers.targetUserId, userId)),
+        or(sql`${vouchers.voucherType} <> 'new_user'`, previousSuccess ? sql`false` : sql`true`),
+        or(sql`${vouchers.pointsRequired} <= ${user.points ?? 0}`, eq(vouchers.targetUserId, userId)),
+        claimedVoucherIds.length ? notInArray(vouchers.id, claimedVoucherIds) : sql`true`
       )
     )
     .orderBy(desc(vouchers.createdAt))

@@ -39,7 +39,7 @@ const profit = (product: AdminProduct) => Number(product.sellPrice) - Number(pro
 type AdminVoucher = {
   id: string;
   code: string;
-  voucherType?: 'new_user' | 'promo' | 'loyalty_points';
+  voucherType?: 'new_user' | 'promo' | 'loyalty_points' | 'compensation';
   discountType: 'fixed' | 'percentage';
   discountValue: string;
   minPurchase: string;
@@ -49,6 +49,7 @@ type AdminVoucher = {
   dailyLimit?: number | null;
   pointsRequired: number;
   isPublic: boolean;
+  targetUserId?: string | null;
   isActive: boolean;
   startAt?: string;
   expiresAt: string;
@@ -90,10 +91,11 @@ export default function OldSchoolPage() {
   const [actionMessage, setActionMessage] = useState('');
   const [syncingProducts, setSyncingProducts] = useState(false);
   const [banner, setBanner] = useState<HomeBanner | null>(null);
+  const [bannerDraft, setBannerDraft] = useState<HomeBanner | null>(null);
   const [editingVoucher, setEditingVoucher] = useState<AdminVoucher | null>(null);
   const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
   const [showAddVoucher, setShowAddVoucher] = useState(false);
-  const [createVoucherType, setCreateVoucherType] = useState<'new_user' | 'promo' | 'loyalty_points'>('promo');
+  const [createVoucherType, setCreateVoucherType] = useState<'new_user' | 'promo' | 'loyalty_points' | 'compensation'>('promo');
 
   // Bulk Product Matrix state
   const [bulkScope, setBulkScope] = useState<'all' | 'category' | 'gameId'>('all');
@@ -188,7 +190,7 @@ export default function OldSchoolPage() {
       if (pRes.ok) { const p = await pRes.json(); setProducts(p.products ?? []); }
       if (vRes.ok) { const v = await vRes.json(); setVouchers(v.vouchers ?? []); }
       if (uRes.ok) { const u = await uRes.json(); setUsers(u.users ?? []); }
-      if (bRes.ok) { const b = await bRes.json(); setBanner(b.banner ?? null); }
+      if (bRes.ok) { const b = await bRes.json(); setBanner(b.banner ?? null); setBannerDraft(b.banner ?? null); }
       if (oRes.ok) { const o = await oRes.json(); setActionOrders(o.orders ?? []); }
     } catch {
       setAccessState('forbidden');
@@ -321,11 +323,11 @@ export default function OldSchoolPage() {
       {banner && <div className="glass-panel p-6 rounded-2xl border border-surface-border space-y-4">
         <h2 className="text-base font-cyber font-bold text-white">Home Banner Promo</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <input id="banner-title" defaultValue={banner.title} className="bg-black/40 border border-surface-border rounded px-3 py-2 text-xs text-white" placeholder="Title" />
-          <input id="banner-cta" defaultValue={banner.ctaText} className="bg-black/40 border border-surface-border rounded px-3 py-2 text-xs text-white" placeholder="CTA text" />
-          <input id="banner-url" defaultValue={banner.ctaUrl} className="bg-black/40 border border-surface-border rounded px-3 py-2 text-xs text-white" placeholder="CTA URL" />
-          <label className="flex items-center gap-2 text-xs text-slate-300"><input id="banner-active" type="checkbox" defaultChecked={banner.isActive} /> Active</label>
-          <textarea id="banner-subtitle" defaultValue={banner.subtitle} className="md:col-span-2 bg-black/40 border border-surface-border rounded px-3 py-2 text-xs text-white" placeholder="Subtitle" />
+          <input value={bannerDraft?.title ?? ''} onChange={e => setBannerDraft(v => v && ({ ...v, title: e.target.value }))} className="bg-black/40 border border-surface-border rounded px-3 py-2 text-xs text-white" placeholder="Title" />
+          <input value={bannerDraft?.ctaText ?? ''} onChange={e => setBannerDraft(v => v && ({ ...v, ctaText: e.target.value }))} className="bg-black/40 border border-surface-border rounded px-3 py-2 text-xs text-white" placeholder="CTA text" />
+          <input value={bannerDraft?.ctaUrl ?? ''} onChange={e => setBannerDraft(v => v && ({ ...v, ctaUrl: e.target.value }))} className="bg-black/40 border border-surface-border rounded px-3 py-2 text-xs text-white" placeholder="CTA URL" />
+          <label className="flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" checked={bannerDraft?.isActive ?? true} onChange={e => setBannerDraft(v => v && ({ ...v, isActive: e.target.checked }))} /> Active</label>
+          <textarea value={bannerDraft?.subtitle ?? ''} onChange={e => setBannerDraft(v => v && ({ ...v, subtitle: e.target.value }))} className="md:col-span-2 bg-black/40 border border-surface-border rounded px-3 py-2 text-xs text-white" placeholder="Subtitle" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -373,7 +375,7 @@ export default function OldSchoolPage() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => adminAction('/api/v1/old-school/banners', 'POST', { title: (document.getElementById('banner-title') as HTMLInputElement).value, subtitle: (document.getElementById('banner-subtitle') as HTMLTextAreaElement).value, ctaText: (document.getElementById('banner-cta') as HTMLInputElement).value, ctaUrl: (document.getElementById('banner-url') as HTMLInputElement).value, isActive: (document.getElementById('banner-active') as HTMLInputElement).checked })} className="px-3 py-2 rounded bg-primary/20 border border-primary/40 text-primary text-xs">Save Banner Text</button>
+          <button onClick={() => bannerDraft && adminAction('/api/v1/old-school/banners', 'POST', bannerDraft)} className="px-3 py-2 rounded bg-primary/20 border border-primary/40 text-primary text-xs">Save Banner Text</button>
         </div>
       </div>}
 
@@ -641,6 +643,7 @@ export default function OldSchoolPage() {
                   <option value="promo">1. Promo Umum (Bisa Dipakai Semua User)</option>
                   <option value="new_user">2. New User Only (Order Pertama + Limit Harian)</option>
                   <option value="loyalty_points">3. Loyalty Points (Tukarkan Loyalty Point)</option>
+                  <option value="compensation">4. Kompensasi User Tertentu</option>
                 </select>
               </div>
 
@@ -680,6 +683,17 @@ export default function OldSchoolPage() {
                     <label className="text-[10px] text-blue-300 font-bold block mb-0.5">Limit Pemakaian Per Hari (Daily Limit)</label>
                     <input id="v-daily-limit" type="number" placeholder="Batas klaim per hari (e.g. 20)" defaultValue={20} className="w-full bg-black/40 border border-blue-500/40 rounded p-2 text-white text-xs" />
                     <p className="text-[10px] text-blue-300/80 mt-1">Otomatis hanya berlaku untuk user yang belum pernah memiliki riwayat transaksi SUCCESS.</p>
+                  </div>
+                )}
+
+                {createVoucherType === 'compensation' && (
+                  <div className="sm:col-span-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                    <label className="text-[10px] text-amber-300 font-bold block mb-0.5">User Target Kompensasi</label>
+                    <select id="v-target-user" className="w-full bg-black/40 border border-amber-500/40 rounded p-2 text-white text-xs">
+                      <option value="">Pilih user penerima</option>
+                      {users.map(u => <option key={u.id} value={u.id}>{u.email || u.name || u.id}</option>)}
+                    </select>
+                    <p className="text-[10px] text-amber-300/80 mt-1">Voucher hanya tampil dan bisa diklaim oleh user ini.</p>
                   </div>
                 )}
 
@@ -750,6 +764,7 @@ export default function OldSchoolPage() {
                   const quota = (document.getElementById('v-quota') as HTMLInputElement)?.value || '100';
                   const dailyLimit = createVoucherType === 'new_user' ? (document.getElementById('v-daily-limit') as HTMLInputElement)?.value || null : null;
                   const pointsRequired = createVoucherType === 'loyalty_points' ? (document.getElementById('v-points') as HTMLInputElement)?.value || '0' : '0';
+                  const targetUserId = createVoucherType === 'compensation' ? (document.getElementById('v-target-user') as HTMLSelectElement)?.value : null;
 
                   const startDate = new Date(startYear, startMonth - 1, startDay, startHour, startMinute);
                   const expiresDate = new Date(expYear, expMonth - 1, expDay, expHour, expMinute);
@@ -768,6 +783,10 @@ export default function OldSchoolPage() {
                     setActionMessage('Voucher Loyalty Points membutuhkan Points Required > 0.');
                     return;
                   }
+                  if (createVoucherType === 'compensation' && !targetUserId) {
+                    setActionMessage('Voucher kompensasi membutuhkan user target.');
+                    return;
+                  }
 
                   await adminAction('/api/v1/old-school/vouchers', 'POST', {
                     code: code.toUpperCase(),
@@ -781,8 +800,9 @@ export default function OldSchoolPage() {
                     pointsRequired: Number(pointsRequired),
                     startAt: startDate.toISOString(),
                     expiresAt: expiresDate.toISOString(),
+                    targetUserId,
                     isActive: true,
-                    isPublic: true,
+                    isPublic: createVoucherType !== 'compensation',
                   });
                   setShowAddVoucher(false);
                 }}
@@ -876,6 +896,8 @@ export default function OldSchoolPage() {
                   ? 'bg-blue-500/20 text-blue-400 border-blue-500/40'
                   : v.voucherType === 'loyalty_points'
                   ? 'bg-purple-500/20 text-purple-400 border-purple-500/40'
+                  : v.voucherType === 'compensation'
+                  ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
                   : 'bg-slate-700/50 text-slate-300 border-slate-600';
 
               return (
@@ -884,7 +906,7 @@ export default function OldSchoolPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono font-bold text-white">{v.code}</span>
                       <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold border ${typeBadge}`}>
-                        {v.voucherType === 'new_user' ? 'NEW USER' : v.voucherType === 'loyalty_points' ? 'LOYALTY PTS' : 'PROMO'}
+                        {v.voucherType === 'new_user' ? 'NEW USER' : v.voucherType === 'loyalty_points' ? 'LOYALTY PTS' : v.voucherType === 'compensation' ? 'KOMPENSASI' : 'PROMO'}
                       </span>
                       <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold ${!v.isActive ? 'bg-red-500/20 text-red-400 border border-red-500/40' : !isStarted ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40' : isExpired ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-accent-green/20 text-accent-green border border-accent-green/40'}`}>
                         {!v.isActive ? 'KILLED' : !isStarted ? 'UPCOMING' : isExpired ? 'EXPIRED' : 'ACTIVE'}
@@ -893,7 +915,7 @@ export default function OldSchoolPage() {
                     <p className="text-[11px] text-slate-400">
                       Diskon: {v.discountValue} {v.discountType === 'percentage' ? '%' : 'Rp'} • Quota: {v.quotaUsed}/{v.quota}
                       {v.dailyLimit ? ` • Limit/Hari: ${v.dailyLimit}` : ''}
-                      {v.pointsRequired > 0 ? ` • Poin: ${v.pointsRequired}` : ''}
+                      {v.pointsRequired > 0 ? ` • Poin: ${v.pointsRequired}` : ''}{v.targetUserId ? ` • User: ${v.targetUserId.slice(0, 8)}...` : ''}
                     </p>
                     <p className="text-[10px] text-slate-500 font-mono">
                       Periode: {v.startAt ? new Date(v.startAt).toLocaleDateString('id-ID') : '-'} s/d {new Date(v.expiresAt).toLocaleDateString('id-ID')}

@@ -46,7 +46,7 @@ export function Navbar() {
           </div>
           <div className="flex flex-col">
             <span className="font-cyber font-bold text-xl tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent-purple to-secondary">
-              WETRI<span className="text-secondary text-xs">.COM</span>
+              WETRI<span className="text-secondary text-xs">.SHOP</span>
             </span>
             <span className="text-[10px] text-muted tracking-widest uppercase">Next-Gen Top-up</span>
           </div>
