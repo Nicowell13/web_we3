@@ -124,7 +124,7 @@ export async function advanceTransaction(
     const basePrice = Number((tx as any).basePrice);
     const maxPrice = Math.round(Number(tx.originalAmount ?? tx.amount));
     const baseCustomerNo = tx.targetServerId ? `${tx.targetUserId}${tx.targetServerId}` : tx.targetUserId;
-    const fallbackCustomerNo = tx.targetServerId ? `${tx.targetUserId}|${tx.targetServerId}` : tx.targetUserId;
+    const fallbackCustomerNo = tx.targetServerId ? `${tx.targetUserId}${tx.targetServerId}` : tx.targetUserId;
     const formats = tx.targetServerId ? [baseCustomerNo, fallbackCustomerNo] : [baseCustomerNo];
 
     const isFormatReject = (value: unknown) => {
