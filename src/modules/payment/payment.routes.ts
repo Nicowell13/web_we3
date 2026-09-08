@@ -113,6 +113,18 @@ export const paymentRoutes = new Elysia({ prefix: '/api/v1/payment' })
         });
       }
 
+      if (!link.invoiceUrl) {
+        console.error('[DOKU create-link] Successful response missing payment URL');
+        await db
+          .update(transactions)
+          .set({ status: 'FAILED' })
+          .where(eq(transactions.orderId, orderId));
+        return new Response(JSON.stringify({ message: 'Payment gateway tidak mengembalikan tautan checkout.' }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
       // Store payment reference
       await db
         .update(transactions)

@@ -34,7 +34,7 @@ process.env.DOKU_CLIENT_ID  = CLIENT_ID;
 process.env.DOKU_SECRET_KEY = SECRET_KEY;
 
 // ── Imports after mocks ───────────────────────────────────────────────────────
-import { buildDokuHeaders, verifyDokuWebhook } from '../src/integrations/doku/client';
+import { buildDokuHeaders, parseDokuPaymentResponse, verifyDokuWebhook } from '../src/integrations/doku/client';
 import { handleDokuWebhook } from '../src/integrations/doku/webhook';
 
 // ── Fake DB rows for idempotency tests ───────────────────────────────────────
@@ -86,6 +86,28 @@ describe('[FEAT-04] DOKU Signature: buildDokuHeaders', () => {
     expect(h['Client-Id']).toBe(CLIENT_ID);
     process.env.DOKU_CLIENT_ID = CLIENT_ID;
     process.env.DOKU_SECRET_KEY = SECRET_KEY;
+  });
+});
+
+describe('[FEAT-04] DOKU Checkout response mapping', () => {
+  it('reads payment URL from Checkout v2 response shape', () => {
+    expect(parseDokuPaymentResponse({
+      order: { invoice_number: 'INV-V2' },
+      payment: { url: 'https://jokul.doku.com/checkout/link/token', expired_date: '20260908140000' },
+    }, 'FALLBACK')).toEqual({
+      invoiceUrl: 'https://jokul.doku.com/checkout/link/token',
+      paymentReference: 'INV-V2',
+      expiresAt: '20260908140000',
+    });
+  });
+
+  it('reads payment URL from documented wrapped response shape', () => {
+    expect(parseDokuPaymentResponse({
+      response: {
+        order: { invoice_number: 'INV-V1' },
+        payment: { url: 'https://jokul.doku.com/checkout/link/token', expired_date: '20260908140000' },
+      },
+    }, 'FALLBACK').paymentReference).toBe('INV-V1');
   });
 });
 

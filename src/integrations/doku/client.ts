@@ -93,6 +93,14 @@ export type DokuPaymentLinkResponse = {
   expiresAt: string;
 };
 
+export function parseDokuPaymentResponse(data: any, fallbackOrderId: string): DokuPaymentLinkResponse {
+  return {
+    invoiceUrl:       data.response?.payment?.url ?? data.payment?.url ?? data.url ?? '',
+    paymentReference: data.response?.order?.invoice_number ?? data.order?.invoice_number ?? fallbackOrderId,
+    expiresAt:        data.response?.payment?.expired_date ?? data.payment?.expired_date ?? data.response?.order?.expires_at ?? '',
+  };
+}
+
 /**
  * Create a DOKU payment link (checkout URL).
  * Returns invoice URL and reference for storing in the transactions table.
@@ -158,9 +166,5 @@ export async function createDokuPaymentLink(
 
   const data = await res.json() as any;
 
-  return {
-    invoiceUrl:       data.response?.payment?.url ?? data.url,
-    paymentReference: data.response?.order?.invoice_number ?? payload.orderId,
-    expiresAt:        data.response?.order?.expires_at ?? '',
-  };
+  return parseDokuPaymentResponse(data, payload.orderId);
 }
