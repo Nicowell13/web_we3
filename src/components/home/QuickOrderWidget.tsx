@@ -3,6 +3,7 @@
 import { getApiBaseUrl } from '@/lib/api-url';
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Script from 'next/script';
 import { useAuth } from '@/context/AuthContext';
 import {
   Smartphone,
@@ -287,8 +288,11 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
       setActiveOrder(data);
       const dokuUrl = data.invoiceUrl || data.paymentUrl;
       if (dokuUrl) {
-        // Open DOKU Sandbox in a popup window or redirect
-        window.open(dokuUrl, '_blank', 'width=520,height=700');
+        const loadJokulCheckout = (window as Window & { loadJokulCheckout?: (url: string) => void }).loadJokulCheckout;
+        if (typeof loadJokulCheckout !== 'function') {
+          throw new Error('DOKU Checkout belum siap. Muat ulang halaman lalu coba lagi.');
+        }
+        loadJokulCheckout(dokuUrl);
         setProcessingStatus('created');
       } else {
         setProcessingStatus('success');
@@ -302,6 +306,12 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
 
   return (
     <div className="glass-panel p-5 sm:p-7 rounded-2xl border border-surface-border space-y-6 shadow-neon-cyan relative overflow-hidden">
+      <Script
+        src={process.env.NEXT_PUBLIC_DOKU_ENV === 'production'
+          ? 'https://jokul.doku.com/jokul-checkout-js/v1/jokul-checkout-1.0.0.js'
+          : 'https://sandbox.doku.com/jokul-checkout-js/v1/jokul-checkout-1.0.0.js'}
+        strategy="afterInteractive"
+      />
       {/* Top Tabs */}
       <div className="grid grid-cols-4 gap-2 p-1 rounded-xl bg-black/40 border border-surface-border">
         {[
@@ -658,7 +668,7 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
               <div className="p-4 rounded-xl bg-primary/10 border border-primary/40 text-center space-y-2">
                 <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto" />
                 <p className="text-xs font-cyber font-bold text-white">Menunggu Pembayaran di DOKU...</p>
-                <p className="text-[11px] text-slate-400">Selesaikan pembayaran pada tab DOKU yang telah dibuka.</p>
+                <p className="text-[11px] text-slate-400">Selesaikan pembayaran melalui popup QRIS DOKU.</p>
                 <button
                   onClick={() => setProcessingStatus('success')}
                   className="mt-2 px-3 py-1.5 rounded-lg bg-surface border border-surface-border text-xs text-slate-300 hover:text-white"
