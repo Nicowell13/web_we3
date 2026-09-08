@@ -123,6 +123,8 @@ export async function createDokuPaymentLink(
     },
     payment: {
       payment_due_date: payload.expiryMinutes ?? 60,
+      // Restrict to QRIS only
+      payment_method_types: ['QRIS'],
     },
   });
 

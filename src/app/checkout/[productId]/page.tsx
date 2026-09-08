@@ -5,7 +5,7 @@ import { use, useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { Sparkles, Shield, ArrowRight, Lock, AlertCircle, CheckCircle2, ChevronLeft } from 'lucide-react';
+import { Sparkles, Shield, ArrowRight, Lock, AlertCircle, CheckCircle2, ChevronLeft, QrCode } from 'lucide-react';
 
 function CheckoutContent({ productId }: { productId: string }) {
   const router = useRouter();
@@ -227,7 +227,7 @@ function CheckoutContent({ productId }: { productId: string }) {
               {submitting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                  <span>MENGHUBUNGKAN DOKU...</span>
+                  <span>MENYIAPKAN QR CODE...</span>
                 </>
               ) : !user ? (
                 <>
@@ -236,7 +236,8 @@ function CheckoutContent({ productId }: { productId: string }) {
                 </>
               ) : (
                 <>
-                  <span>BAYAR SEKARANG</span>
+                  <QrCode className="w-4 h-4" />
+                  <span>BAYAR DENGAN QRIS</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -244,11 +245,20 @@ function CheckoutContent({ productId }: { productId: string }) {
           </div>
         </form>
 
-        <div className="mt-6 pt-4 border-t border-surface-border flex items-center justify-between text-[11px] text-slate-400">
+        {/* QRIS badge */}
+        <div className="mt-5 p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/30 flex items-center gap-3">
+          <QrCode className="w-7 h-7 text-emerald-400 shrink-0" />
+          <div>
+            <p className="text-xs font-semibold text-emerald-300">Pembayaran via QRIS</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Scan QR code dengan aplikasi bank atau dompet digital apapun. Berlaku 60 menit.</p>
+          </div>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-surface-border flex items-center justify-between text-[11px] text-slate-400">
           <span className="flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> DOKU Sandbox Gateway Terlindungi
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> DOKU Payment Gateway Terlindungi
           </span>
-          <span>Instan 3 Detik</span>
+          <span>Semua Bank & E-Wallet</span>
         </div>
       </div>
     </div>
