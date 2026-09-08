@@ -68,8 +68,8 @@ export async function getDashboardData(userId: string) {
       updatedAt: transactions.updatedAt,
     })
     .from(transactions)
-    .innerJoin(products, eq(transactions.productId, products.id))
-    .innerJoin(gamesCatalog, eq(products.gameId, gamesCatalog.id))
+    .leftJoin(products, eq(transactions.productId, products.id))
+    .leftJoin(gamesCatalog, eq(products.gameId, gamesCatalog.id))
     .where(eq(transactions.userId, userId))
     .orderBy(desc(transactions.createdAt))
     .limit(20);
