@@ -59,15 +59,15 @@ function makeValidSignature(target: string, body: string, reqId: string, ts: str
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 describe('[FEAT-04] DOKU Signature: buildDokuHeaders', () => {
-  it('returns exact v2 signature headers with ISO milliseconds', () => {
+  it('returns exact Checkout v1 signature headers with ISO milliseconds', () => {
     const body = '{"test":1}';
-    const h = buildDokuHeaders('/checkout/v2/payment', body, 'REQ-001');
+    const h = buildDokuHeaders('/checkout/v1/payment', body, 'REQ-001');
     const expectedDigest = 'SHA-256=' + createHash('sha256').update(body).digest('base64');
     const expectedComponent = [
       `Client-Id:${CLIENT_ID}`,
       'Request-Id:REQ-001',
       `Request-Timestamp:${h['Request-Timestamp']}`,
-      'Request-Target:/checkout/v2/payment',
+      'Request-Target:/checkout/v1/payment',
       `Digest:${expectedDigest}`,
     ].join('\n');
 
@@ -82,7 +82,7 @@ describe('[FEAT-04] DOKU Signature: buildDokuHeaders', () => {
   it('trims credentials before signing', () => {
     process.env.DOKU_CLIENT_ID = ` ${CLIENT_ID} `;
     process.env.DOKU_SECRET_KEY = ` ${SECRET_KEY} `;
-    const h = buildDokuHeaders('/checkout/v2/payment', '{"test":1}', 'REQ-002');
+    const h = buildDokuHeaders('/checkout/v1/payment', '{"test":1}', 'REQ-002');
     expect(h['Client-Id']).toBe(CLIENT_ID);
     process.env.DOKU_CLIENT_ID = CLIENT_ID;
     process.env.DOKU_SECRET_KEY = SECRET_KEY;

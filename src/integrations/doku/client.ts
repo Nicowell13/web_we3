@@ -100,7 +100,7 @@ export type DokuPaymentLinkResponse = {
 export async function createDokuPaymentLink(
   payload: CreatePaymentLinkPayload
 ): Promise<DokuPaymentLinkResponse> {
-  const requestTarget = process.env.DOKU_CHECKOUT_PATH?.trim() || '/checkout/v2/payment';
+  const requestTarget = process.env.DOKU_CHECKOUT_PATH?.trim() || '/checkout/v1/payment';
   if (!requestTarget.startsWith('/checkout/') || !requestTarget.endsWith('/payment')) {
     throw new Error('Invalid DOKU_CHECKOUT_PATH');
   }
