@@ -17,6 +17,8 @@ import {
 import { getAllActiveProducts } from '../modules/product/product.service';
 import QuickOrderWidget from '../components/home/QuickOrderWidget';
 
+export const dynamic = 'force-dynamic';
+
 const FEATURED_GAMES = [
   {
     id: 'mobile-legends',
