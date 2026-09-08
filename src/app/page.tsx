@@ -69,6 +69,9 @@ async function getFeaturedProducts() {
 
 export default async function HomePage() {
   const banner = await getHomeBanner();
+  const bannerActive = banner?.isActive === true;
+  const bannerCtaText = bannerActive && banner.ctaText.trim() ? banner.ctaText : 'JELAJAHI KATALOG';
+  const bannerCtaUrl = bannerActive && banner.ctaUrl.trim() ? banner.ctaUrl : '/catalog';
   const allProducts = await getFeaturedProducts();
   const catalogSlice = allProducts.slice(0, 12);
 
@@ -93,7 +96,7 @@ export default async function HomePage() {
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
 
-        {banner?.isActive && (banner.desktopImageUrl || banner.mobileImageUrl) && (
+        {bannerActive && (banner.desktopImageUrl || banner.mobileImageUrl) && (
           <>
             {banner.desktopImageUrl && (
               <div className="absolute inset-y-0 right-0 hidden lg:block w-1/2 opacity-35">
@@ -117,22 +120,22 @@ export default async function HomePage() {
           </div>
 
           <h1 className="font-cyber text-2xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
-            {banner?.isActive ? banner.title : 'TOP-UP INSTAN.'} <br />
+            {bannerActive ? banner.title : 'TOP-UP INSTAN.'} <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent-purple to-secondary">
               REWARD SETIAP TRANSAKSI.
             </span>
           </h1>
 
           <p className="text-slate-300 text-sm sm:text-base max-w-xl">
-            {banner?.isActive ? banner.subtitle : 'Layanan top-up game & PPOB berkecepatan tinggi. Dapatkan cashback loyalty points, daily streak reward, dan diskon eksklusif.'}
+            {bannerActive ? banner.subtitle : 'Layanan top-up game & PPOB berkecepatan tinggi. Dapatkan cashback loyalty points, daily streak reward, dan diskon eksklusif.'}
           </p>
 
           <div className="flex flex-wrap items-center gap-3 pt-2">
             <Link
-              href={banner?.isActive ? banner.ctaUrl : '/catalog'}
+              href={bannerCtaUrl}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-black font-cyber font-bold text-xs sm:text-sm tracking-wide hover:shadow-neon-cyan transition-all duration-300 hover:scale-105"
             >
-              <span>{banner?.isActive ? banner.ctaText : 'JELAJAHI KATALOG'}</span>
+              <span>{bannerCtaText}</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link

@@ -10,14 +10,16 @@ const keys = ['HOME_BANNER_TITLE', 'HOME_BANNER_SUBTITLE', 'HOME_BANNER_CTA_TEXT
 async function getBannerConfig() {
   const rows = await db.query.systemConfigs.findMany({ where: (table, { inArray }) => inArray(table.key, [...keys]) });
   const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  const desktopImageUrl = map.HOME_BANNER_IMAGE_URL?.trim() ?? '';
+  const mobileImageUrl = map.HOME_BANNER_MOBILE_IMAGE_URL?.trim() ?? '';
   return {
-    title: map.HOME_BANNER_TITLE ?? 'LEVEL UP INSTAN.',
-    subtitle: map.HOME_BANNER_SUBTITLE ?? 'Layanan top-up game & PPOB tercepat berkecepatan kilat.',
-    ctaText: map.HOME_BANNER_CTA_TEXT ?? 'JELAJAHI KATALOG',
-    ctaUrl: map.HOME_BANNER_CTA_URL ?? '/catalog',
-    imageUrl: map.HOME_BANNER_IMAGE_URL ?? '',
-    desktopImageUrl: map.HOME_BANNER_IMAGE_URL ?? '',
-    mobileImageUrl: map.HOME_BANNER_MOBILE_IMAGE_URL ?? '',
+    title: map.HOME_BANNER_TITLE?.trim() || 'LEVEL UP INSTAN.',
+    subtitle: map.HOME_BANNER_SUBTITLE?.trim() || 'Layanan top-up game & PPOB tercepat berkecepatan kilat.',
+    ctaText: map.HOME_BANNER_CTA_TEXT?.trim() || 'JELAJAHI KATALOG',
+    ctaUrl: map.HOME_BANNER_CTA_URL?.trim() || '/catalog',
+    imageUrl: desktopImageUrl,
+    desktopImageUrl,
+    mobileImageUrl,
     isActive: map.HOME_BANNER_ACTIVE !== 'false',
   };
 }
