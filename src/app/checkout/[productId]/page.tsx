@@ -3,9 +3,16 @@
 import { getApiBaseUrl } from '@/lib/api-url';
 import { use, useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Script from 'next/script';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Sparkles, Shield, ArrowRight, Lock, AlertCircle, CheckCircle2, ChevronLeft, QrCode } from 'lucide-react';
+
+// DOKU Jokul Checkout JS — production vs sandbox
+const JOKUL_JS_URL =
+  process.env.NEXT_PUBLIC_DOKU_ENV === 'production' || process.env.NEXT_PUBLIC_DOKU_ENV === 'live'
+    ? 'https://jokul.doku.com/jokul-checkout-js/v1/jokul-checkout-1.0.0.js'
+    : 'https://sandbox.doku.com/jokul-checkout-js/v1/jokul-checkout-1.0.0.js';
 
 function CheckoutContent({ productId }: { productId: string }) {
   const router = useRouter();
@@ -118,11 +125,17 @@ function CheckoutContent({ productId }: { productId: string }) {
         throw new Error(json.message || 'Checkout gagal.');
       }
 
-      // If DOKU invoice URL is provided, redirect to DOKU Sandbox payment
-      if (json.invoiceUrl || json.paymentUrl) {
-        window.location.href = json.invoiceUrl || json.paymentUrl;
+      const invoiceUrl = json.invoiceUrl || json.paymentUrl;
+      if (invoiceUrl) {
+        // Use DOKU Jokul popup if SDK is loaded, otherwise fallback redirect
+        const jokulFn = (window as any).loadJokulCheckout;
+        if (typeof jokulFn === 'function') {
+          jokulFn(invoiceUrl);
+          setSubmitting(false);
+        } else {
+          window.location.href = invoiceUrl;
+        }
       } else {
-        // Fallback: If free or direct success, redirect to dashboard
         router.push('/dashboard?payment=success');
       }
     } catch (err: any) {
@@ -133,6 +146,9 @@ function CheckoutContent({ productId }: { productId: string }) {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
+      {/* Load DOKU Jokul Checkout JS for popup mode */}
+      <Script src={JOKUL_JS_URL} strategy="lazyOnload" />
+
       <Link href="/catalog" className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-primary mb-6 transition-colors">
         <ChevronLeft className="w-4 h-4" />
         <span>Kembali ke Katalog</span>

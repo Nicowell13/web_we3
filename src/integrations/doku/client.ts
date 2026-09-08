@@ -101,12 +101,21 @@ export async function createDokuPaymentLink(
   const requestTarget = '/checkout/v1/payment';
   const requestId     = payload.orderId;
 
+  const isProd = process.env.DOKU_ENV === 'production' || process.env.DOKU_ENV === 'live';
+  const appUrl  = (process.env.NEXT_PUBLIC_API_URL ?? 'https://wetri.shop').replace(/\/$/, '');
+
   const body = JSON.stringify({
     client: {
       id: process.env.DOKU_CLIENT_ID,
     },
     order: {
-      invoice_number: payload.orderId,
+      invoice_number:   payload.orderId,
+      amount:           payload.amount,
+      currency:         'IDR',
+      language:         'ID',
+      // After payment → back to dashboard; cancel → back to checkout
+      callback_url:        `${appUrl}/dashboard?payment=success`,
+      callback_url_cancel: `${appUrl}/catalog`,
       line_items: [
         {
           name:     payload.description,
@@ -114,16 +123,14 @@ export async function createDokuPaymentLink(
           quantity: 1,
         },
       ],
-      amount:   payload.amount,
-      currency: 'IDR',
     },
     customer: {
       name:  payload.customerName,
       email: payload.customerEmail,
     },
     payment: {
-      payment_due_date: payload.expiryMinutes ?? 60,
-      // Restrict to QRIS only
+      payment_due_date:     payload.expiryMinutes ?? 60,
+      // QRIS only
       payment_method_types: ['QRIS'],
     },
   });
