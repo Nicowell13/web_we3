@@ -91,14 +91,27 @@ export const paymentRoutes = new Elysia({ prefix: '/api/v1/payment' })
       });
 
       // Create DOKU payment link
-      const link = await createDokuPaymentLink({
-        orderId,
-        amount,
-        customerName:  user.name ?? user.email ?? 'Customer',
-        customerEmail,
-        description,
-        expiryMinutes: 60,
-      });
+      let link;
+      try {
+        link = await createDokuPaymentLink({
+          orderId,
+          amount,
+          customerName:  user.name ?? user.email ?? 'Customer',
+          customerEmail,
+          description,
+          expiryMinutes: 60,
+        });
+      } catch (error) {
+        console.error('[DOKU create-link]', error instanceof Error ? error.message : error);
+        await db
+          .update(transactions)
+          .set({ status: 'FAILED' })
+          .where(eq(transactions.orderId, orderId));
+        return new Response(JSON.stringify({ message: 'Payment gateway sedang bermasalah. Silakan coba lagi.' }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
 
       // Store payment reference
       await db

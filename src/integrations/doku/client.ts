@@ -4,7 +4,9 @@ const DOKU_SANDBOX_URL = 'https://api-sandbox.doku.com';
 const DOKU_PROD_URL    = 'https://api.doku.com';
 
 function baseUrl() {
-  return process.env.DOKU_ENV === 'production' ? DOKU_PROD_URL : DOKU_SANDBOX_URL;
+  return ['production', 'live'].includes(process.env.DOKU_ENV?.toLowerCase() ?? '')
+    ? DOKU_PROD_URL
+    : DOKU_SANDBOX_URL;
 }
 
 /**
@@ -101,8 +103,7 @@ export async function createDokuPaymentLink(
   const requestTarget = '/checkout/v1/payment';
   const requestId     = payload.orderId;
 
-  const isProd = process.env.DOKU_ENV === 'production' || process.env.DOKU_ENV === 'live';
-  const appUrl  = (process.env.NEXT_PUBLIC_API_URL ?? 'https://wetri.shop').replace(/\/$/, '');
+  const appUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'https://wetri.shop').replace(/\/$/, '');
 
   const body = JSON.stringify({
     client: {
@@ -135,6 +136,10 @@ export async function createDokuPaymentLink(
     },
   });
 
+  if (!process.env.DOKU_CLIENT_ID || !process.env.DOKU_SECRET_KEY) {
+    throw new Error('DOKU credentials are not configured');
+  }
+
   const headers = buildDokuHeaders(requestTarget, body, requestId);
 
   const res = await fetch(`${baseUrl()}${requestTarget}`, {
@@ -145,7 +150,7 @@ export async function createDokuPaymentLink(
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`DOKU API error ${res.status}: ${err}`);
+    throw new Error(`DOKU API error ${res.status}: ${err.slice(0, 1000)}`);
   }
 
   const data = await res.json() as any;
