@@ -1,4 +1,4 @@
-import { createHash, createHmac } from 'crypto';
+import { createHash, createHmac, randomUUID } from 'crypto';
 
 const DOKU_SANDBOX_URL = 'https://api-sandbox.doku.com';
 const DOKU_PROD_URL    = 'https://api.doku.com';
@@ -21,9 +21,9 @@ export function buildDokuHeaders(
   rawBody: string,
   requestId: string
 ): Record<string, string> {
-  const clientId  = process.env.DOKU_CLIENT_ID ?? '';
-  const secretKey = process.env.DOKU_SECRET_KEY ?? '';
-  const timestamp = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+  const clientId  = process.env.DOKU_CLIENT_ID?.trim() ?? '';
+  const secretKey = process.env.DOKU_SECRET_KEY?.trim() ?? '';
+  const timestamp = new Date().toISOString();
 
   const digest    = 'SHA-256=' + createHash('sha256').update(rawBody).digest('base64');
 
@@ -59,8 +59,8 @@ export function verifyDokuWebhook(
   incomingTimestamp: string,
   incomingSignature: string
 ): boolean {
-  const secretKey = process.env.DOKU_SECRET_KEY ?? '';
-  const clientId  = process.env.DOKU_CLIENT_ID  ?? '';
+  const secretKey = process.env.DOKU_SECRET_KEY?.trim() ?? '';
+  const clientId  = process.env.DOKU_CLIENT_ID?.trim() ?? '';
 
   const digest = 'SHA-256=' + createHash('sha256').update(rawBody).digest('base64');
 
@@ -104,13 +104,13 @@ export async function createDokuPaymentLink(
   if (!requestTarget.startsWith('/checkout/') || !requestTarget.endsWith('/payment')) {
     throw new Error('Invalid DOKU_CHECKOUT_PATH');
   }
-  const requestId = payload.orderId;
+  const requestId = randomUUID();
 
   const appUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'https://wetri.shop').replace(/\/$/, '');
 
   const body = JSON.stringify({
     client: {
-      id: process.env.DOKU_CLIENT_ID,
+      id: process.env.DOKU_CLIENT_ID?.trim(),
     },
     order: {
       invoice_number:   payload.orderId,
@@ -139,7 +139,7 @@ export async function createDokuPaymentLink(
     },
   });
 
-  if (!process.env.DOKU_CLIENT_ID || !process.env.DOKU_SECRET_KEY) {
+  if (!process.env.DOKU_CLIENT_ID?.trim() || !process.env.DOKU_SECRET_KEY?.trim()) {
     throw new Error('DOKU credentials are not configured');
   }
 
