@@ -289,6 +289,32 @@ export default function DashboardPage() {
   const ownedVouchers = data?.ownedVouchers || [];
   const availableVouchers = data?.availableVouchers || [];
   const activityTimeline = data?.activityTimeline || [];
+  const transactionCategory = (tx: any) => {
+    const category = String(tx.category || '').toLowerCase();
+    if (category === 'pln') return { title: 'Token PLN', target: 'ID Pelanggan / No. Meter' };
+    if (category === 'data') return { title: 'Paket Data', target: 'Nomor HP' };
+    if (category === 'pulsa') return { title: 'Pulsa', target: 'Nomor HP' };
+    return { title: 'Top-up Game', target: 'ID Game' };
+  };
+
+  const TransactionResult = ({ tx }: { tx: any }) => tx.metadata?.plnToken ? (
+    <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-400">
+          <Zap className="h-3 w-3" /> Token PLN
+        </span>
+        <button onClick={() => copyToClipboard(tx.metadata.plnToken.tokenNumber)} className="text-[10px] font-mono text-amber-300 underline">
+          {copiedId === tx.metadata.plnToken.tokenNumber ? 'Tersalin' : 'Salin'}
+        </button>
+      </div>
+      <p className="mt-1 break-all font-mono text-sm font-bold tracking-wider text-amber-300">{tx.metadata.plnToken.tokenNumber}</p>
+    </div>
+  ) : tx.supplierSn && tx.status === 'SUCCESS' ? (
+    <div className="mt-3 rounded-lg border border-accent-green/30 bg-accent-green/10 p-3">
+      <p className="text-[10px] font-bold uppercase text-accent-green">Serial Number</p>
+      <p className="mt-1 break-all font-mono text-xs text-slate-200">{tx.supplierSn}</p>
+    </div>
+  ) : null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -618,7 +644,38 @@ export default function DashboardPage() {
               <p>Belum ada transaksi ditemukan.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              <div className="space-y-3 md:hidden">
+                {recentTransactions.map((tx: any) => {
+                  const labels = transactionCategory(tx);
+                  return (
+                    <article key={tx.orderId} className="rounded-xl border border-surface-border bg-surface/60 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-white">{labels.title}</p>
+                          <p className="truncate text-[11px] text-slate-400">{tx.serviceName || tx.productName}</p>
+                        </div>
+                        <span className={`shrink-0 rounded border px-2 py-1 text-[10px] font-bold ${tx.status === 'SUCCESS' ? 'border-accent-green/30 bg-accent-green/20 text-accent-green' : tx.status === 'FAILED' ? 'border-secondary/30 bg-secondary/20 text-secondary' : 'border-primary/30 bg-primary/20 text-primary'}`}>
+                          {tx.status}
+                        </span>
+                      </div>
+                      <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                        <div className="col-span-2"><dt className="text-[10px] uppercase text-slate-500">Produk</dt><dd className="text-slate-200">{tx.productName || '-'}</dd></div>
+                        <div className="col-span-2"><dt className="text-[10px] uppercase text-slate-500">{labels.target}</dt><dd className="break-all font-mono text-slate-200">{tx.targetUserId}{tx.targetServerId ? ` (${tx.targetServerId})` : ''}</dd></div>
+                        <div><dt className="text-[10px] uppercase text-slate-500">Nominal</dt><dd className="font-bold text-white">Rp {Number(tx.amount).toLocaleString('id-ID')}</dd></div>
+                        <div><dt className="text-[10px] uppercase text-slate-500">Waktu</dt><dd className="text-slate-300">{new Date(tx.createdAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</dd></div>
+                      </dl>
+                      <div className="mt-3 flex items-center justify-between gap-2 border-t border-surface-border/60 pt-3">
+                        <span className="truncate font-mono text-[10px] text-slate-500">{tx.orderId}</span>
+                        <button onClick={() => copyToClipboard(tx.orderId)} className="shrink-0 text-[10px] text-primary">{copiedId === tx.orderId ? 'Tersalin' : 'Salin ID'}</button>
+                      </div>
+                      {tx.status === 'PROCESSING' && <p className="mt-3 rounded-lg border border-primary/30 bg-primary/10 p-2 text-[10px] text-primary">Pembayaran diterima. Pesanan sedang diproses supplier.</p>}
+                      <TransactionResult tx={tx} />
+                    </article>
+                  );
+                })}
+              </div>
+              <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-surface-border text-xs uppercase tracking-wider text-slate-400">
@@ -728,7 +785,8 @@ export default function DashboardPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+              </div>
+            </>
           )}
         </div>
       )}

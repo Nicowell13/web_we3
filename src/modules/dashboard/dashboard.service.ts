@@ -1,5 +1,5 @@
 import { db } from '../../db';
-import { users, transactions, userVouchers, vouchers, gamesCatalog } from '../../db/schema';
+import { users, transactions, userVouchers, vouchers, gamesCatalog, products } from '../../db/schema';
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
 import { createDefaultAvatar } from '../../lib/cloudinary';
 
@@ -61,10 +61,15 @@ export async function getDashboardData(userId: string) {
       productId: transactions.productId,
       supplierSn: transactions.supplierSn,
       metadata: transactions.metadata,
+      productName: products.denomination,
+      serviceName: gamesCatalog.name,
+      category: gamesCatalog.category,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
     })
     .from(transactions)
+    .innerJoin(products, eq(transactions.productId, products.id))
+    .innerJoin(gamesCatalog, eq(products.gameId, gamesCatalog.id))
     .where(eq(transactions.userId, userId))
     .orderBy(desc(transactions.createdAt))
     .limit(20);
