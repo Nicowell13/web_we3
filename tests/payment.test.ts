@@ -16,7 +16,10 @@ mock.module('../src/lib/firebase-admin', () => ({
 
 mock.module('../src/db', () => ({
   db: {
-    query: { systemConfigs: { findFirst: async () => ({ key: 'ACTIVE_SUPPLIER', value: 'digiflazz', isActive: true }) } },
+    query: {
+      systemConfigs: { findFirst: async () => ({ key: 'ACTIVE_SUPPLIER', value: 'digiflazz', isActive: true }) },
+      transactions: { findFirst: async () => null },
+    },
     insert: () => ({ values: async () => {} }),
     update: () => ({ set: () => ({ where: async () => {} }) }),
   },
@@ -203,6 +206,24 @@ describe('[FEAT-04] DOKU Idempotency Guard: handleDokuWebhook', () => {
 });
 
 describe('[FEAT-04] Webhook HTTP: signature gate', () => {
+  it('verifies signature against exact raw request body', async () => {
+    const { app } = await import('../server/index');
+    const body = '{\n  "order":{"invoice_number":"WETRI-TEST-001","amount":25000},\n  "transaction":{"status":"SUCCESS","date":"2026-09-01T14:00:00Z"}\n}';
+    const reqId = 'HOOK-RAW-001';
+    const ts = '2026-09-01T14:00:00Z';
+    const res = await app.handle(new Request('http://localhost:3001/api/v1/payment/webhook', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Request-Id': reqId,
+        'Request-Timestamp': ts,
+        Signature: makeValidSignature('/api/v1/payment/webhook', body, reqId, ts),
+      },
+      body,
+    }));
+    expect(res.status).toBe(200);
+  });
+
   it('POST /api/v1/payment/webhook returns 401 with invalid signature', async () => {
     const { app } = await import('../server/index');
     const body = JSON.stringify({

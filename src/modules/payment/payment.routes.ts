@@ -22,8 +22,16 @@ function generateOrderId() {
  */
 export const paymentRoutes = new Elysia({ prefix: '/api/v1/payment' })
 
-  // ── Create payment link (authenticated user) ─────────────────────────────
   .use(authenticate)
+  .get('/:orderId', async ({ user, params }) => {
+    const transaction = await db.query.transactions.findFirst({
+      where: and(eq(transactions.orderId, params.orderId), eq(transactions.userId, user.uid)),
+    });
+    if (!transaction) return new Response(JSON.stringify({ message: 'Transaction not found' }), { status: 404 });
+    return { ok: true, orderId: transaction.orderId, status: transaction.status };
+  })
+
+  // ── Create payment link (authenticated user) ─────────────────────────────
   .post(
     '/create-link',
     async ({ user, body, request }) => {
@@ -155,10 +163,17 @@ export const paymentRoutes = new Elysia({ prefix: '/api/v1/payment' })
   ;
 
 export const webhookRoutes = new Elysia({ prefix: '/api/v1/payment' })
+  .onParse(({ request }) => request.text())
   .post(
     '/webhook',
     async ({ request, body }) => {
-      const rawBody          = JSON.stringify(body);
+      const rawBody          = String(body);
+      let payload: DokuWebhookPayload;
+      try {
+        payload = JSON.parse(rawBody);
+      } catch {
+        return new Response(JSON.stringify({ message: 'Invalid JSON' }), { status: 400 });
+      }
       const requestId        = request.headers.get('Request-Id')        ?? '';
       const requestTimestamp = request.headers.get('Request-Timestamp') ?? '';
       const signature        = request.headers.get('Signature')         ?? '';
@@ -176,7 +191,7 @@ export const webhookRoutes = new Elysia({ prefix: '/api/v1/payment' })
         return new Response(JSON.stringify({ message: 'Invalid signature' }), { status: 401 });
       }
 
-      const result = await handleDokuWebhook(body as DokuWebhookPayload, rawBody, ip);
+      const result = await handleDokuWebhook(payload, rawBody, ip);
       return { ok: true, ...result };
     }
   );

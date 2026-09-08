@@ -251,6 +251,38 @@ export default function QuickOrderWidget({ products }: { products: Product[] }) 
     setShowCheckoutModal(true);
   };
 
+  useEffect(() => {
+    if (!activeOrder?.orderId || processingStatus !== 'created' || !user) return;
+
+    let stopped = false;
+    const checkStatus = async () => {
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch(`${getApiBaseUrl()}/api/v1/payment/${encodeURIComponent(activeOrder.orderId)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (stopped || !res.ok) return;
+        if (['PAID', 'PROCESSING', 'SUCCESS'].includes(data.status)) {
+          document.getElementById('jokul_checkout_modal')?.remove();
+          setProcessingStatus('success');
+          router.push(`/dashboard?payment=success&orderId=${encodeURIComponent(activeOrder.orderId)}`);
+        } else if (data.status === 'FAILED') {
+          document.getElementById('jokul_checkout_modal')?.remove();
+          setCheckoutError('Pembayaran gagal atau kedaluwarsa.');
+          setProcessingStatus('idle');
+        }
+      } catch {}
+    };
+
+    checkStatus();
+    const timer = window.setInterval(checkStatus, 3000);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [activeOrder?.orderId, processingStatus, user, router]);
+
   const handleCreateDokuLink = async () => {
     if (!user || !selectedProduct) return;
     const { targetId, serverId } = getTargetValues();
