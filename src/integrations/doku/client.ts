@@ -100,8 +100,11 @@ export type DokuPaymentLinkResponse = {
 export async function createDokuPaymentLink(
   payload: CreatePaymentLinkPayload
 ): Promise<DokuPaymentLinkResponse> {
-  const requestTarget = '/checkout/v1/payment';
-  const requestId     = payload.orderId;
+  const requestTarget = process.env.DOKU_CHECKOUT_PATH?.trim() || '/checkout/v2/payment';
+  if (!requestTarget.startsWith('/checkout/') || !requestTarget.endsWith('/payment')) {
+    throw new Error('Invalid DOKU_CHECKOUT_PATH');
+  }
+  const requestId = payload.orderId;
 
   const appUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'https://wetri.shop').replace(/\/$/, '');
 
