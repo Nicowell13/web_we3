@@ -58,7 +58,7 @@ export function Navbar() {
             <ShoppingBag className="w-4 h-4 text-primary" />
             Katalog Game
           </Link>
-          <Link href="/loyalty" className="text-slate-300 hover:text-secondary transition-colors flex items-center gap-1.5">
+          <Link href="/dashboard" className="text-slate-300 hover:text-secondary transition-colors flex items-center gap-1.5">
             <Sparkles className="w-4 h-4 text-secondary" />
             Loyalti & Daily Streak
           </Link>
@@ -108,3 +108,4 @@ export function Navbar() {
     </header>
   );
 }
+

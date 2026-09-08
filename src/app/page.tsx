@@ -134,7 +134,7 @@ export default async function HomePage() {
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
-              href="/loyalty"
+              href="/dashboard"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-surface border border-secondary/50 text-secondary font-cyber font-bold text-xs sm:text-sm tracking-wide hover:shadow-neon-pink hover:bg-secondary/10 transition-all duration-300"
             >
               <Trophy className="w-4 h-4" />
@@ -164,7 +164,7 @@ export default async function HomePage() {
             <h2 className="font-cyber text-lg sm:text-xl font-bold text-white">TOP SPENDER</h2>
             <p className="text-xs text-slate-400">Leaderboard transaksi berhasil bulan ini</p>
           </div>
-          <Link href="/loyalty" className="text-xs font-semibold text-secondary hover:underline flex items-center gap-1">
+          <Link href="/dashboard" className="text-xs font-semibold text-secondary hover:underline flex items-center gap-1">
             Lihat Reward <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
@@ -209,3 +209,4 @@ export default async function HomePage() {
     </div>
   );
 }
+

@@ -59,6 +59,8 @@ export async function getDashboardData(userId: string) {
       targetUserId: transactions.targetUserId,
       targetServerId: transactions.targetServerId,
       productId: transactions.productId,
+      supplierSn: transactions.supplierSn,
+      metadata: transactions.metadata,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
     })
