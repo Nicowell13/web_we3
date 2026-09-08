@@ -47,7 +47,7 @@ const fakeAudit     = async () => {};
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 function makeValidSignature(target: string, body: string, reqId: string, ts: string) {
-  const digest = 'SHA-256=' + createHash('sha256').update(body).digest('base64');
+  const digest = createHash('sha256').update(body).digest('base64');
   const comp   =
     `Client-Id:${CLIENT_ID}\n` +
     `Request-Id:${reqId}\n` +
@@ -62,7 +62,7 @@ describe('[FEAT-04] DOKU Signature: buildDokuHeaders', () => {
   it('returns exact Checkout v1 signature headers with ISO milliseconds', () => {
     const body = '{"test":1}';
     const h = buildDokuHeaders('/checkout/v1/payment', body, 'REQ-001');
-    const expectedDigest = 'SHA-256=' + createHash('sha256').update(body).digest('base64');
+    const expectedDigest = createHash('sha256').update(body).digest('base64');
     const expectedComponent = [
       `Client-Id:${CLIENT_ID}`,
       'Request-Id:REQ-001',
@@ -74,7 +74,7 @@ describe('[FEAT-04] DOKU Signature: buildDokuHeaders', () => {
     expect(h['Client-Id']).toBe(CLIENT_ID);
     expect(h['Request-Id']).toBe('REQ-001');
     expect(h['Request-Timestamp']).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
-    expect(h['Digest']).toBe(expectedDigest);
+    expect(h['Digest']).toBe(`SHA-256=${expectedDigest}`);
     expect(h['Signature']).toBe(`HMACSHA256=${createHmac('sha256', SECRET_KEY).update(expectedComponent).digest('base64')}`);
     expect(h['Content-Type']).toBe('application/json');
   });

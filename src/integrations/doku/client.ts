@@ -25,7 +25,7 @@ export function buildDokuHeaders(
   const secretKey = process.env.DOKU_SECRET_KEY?.trim() ?? '';
   const timestamp = new Date().toISOString();
 
-  const digest    = 'SHA-256=' + createHash('sha256').update(rawBody).digest('base64');
+  const digest = createHash('sha256').update(rawBody).digest('base64');
 
   const componentToSign =
     `Client-Id:${clientId}\n` +
@@ -42,7 +42,7 @@ export function buildDokuHeaders(
     'Client-Id':          clientId,
     'Request-Id':         requestId,
     'Request-Timestamp':  timestamp,
-    Digest:               digest,
+    Digest:               `SHA-256=${digest}`,
     Signature:            `HMACSHA256=${signature}`,
     'Content-Type':       'application/json',
   };
@@ -62,7 +62,7 @@ export function verifyDokuWebhook(
   const secretKey = process.env.DOKU_SECRET_KEY?.trim() ?? '';
   const clientId  = process.env.DOKU_CLIENT_ID?.trim() ?? '';
 
-  const digest = 'SHA-256=' + createHash('sha256').update(rawBody).digest('base64');
+  const digest = createHash('sha256').update(rawBody).digest('base64');
 
   const componentToSign =
     `Client-Id:${clientId}\n` +
