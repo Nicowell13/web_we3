@@ -8,7 +8,7 @@ export function Footer() {
           {/* Brand Col */}
           <div className="space-y-4 md:col-span-2">
             <span className="font-cyber font-bold text-2xl tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent-purple to-secondary">
-              WETRI<span className="text-secondary text-sm">.COM</span>
+              WETRI<span className="text-secondary text-sm">.SHOP</span>
             </span>
             <p className="text-sm text-slate-400 max-w-sm">
               Platform top-up game & produk digital otomatis 24/7 dengan tema Cyberpunk, instant delivery, dan sistem gamifikasi reward points.

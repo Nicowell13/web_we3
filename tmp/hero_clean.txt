@@ -1,0 +1,34 @@
+QuickOrderWidget from '../components/home/QuickOrderWidget';
+
+const FEATURED_GAMES = [
+  {
+    id: 'mobile-legends',
+    name: 'Mobile Legends: Bang Bang',
+    publisher: 'Moonton',
+    category: 'Game',
+    discountBadge: 'DISKON 15%',
+    image: '/games/mobile-legends.png',
+  },
+  {
+    id: 'free-fire',
+    name: 'Free Fire MAX',
+    publisher: 'Garena',
+    category: 'Game',
+    discountBadge: 'HOT PROMO',
+    image: '/games/free-fire.png',
+  },
+  {
+    id: 'magic-chess',
+    name: 'Magic Chess Go Go',
+    publisher: 'Moonton',
+    category: 'Game',
+    discountBadge: 'NEW',
+    image: '/games/magic-chess.png',
+  },
+];
+
+async function getHomeBanner() {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/api/v1/home-banner`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('banner unavailable');
+    

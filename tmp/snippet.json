@@ -1,0 +1,1 @@
+{"s":"[char 1056]\\netHomeBanner() {\n  try {\n    const res = await fetch(`${getApiBaseUrl()}/api/v1/home-banner`, { cache: 'no-store' });\n    if (!res.ok) throw new Error('banner unavailable');\n    return (await res.json()).banner as {\n      title: string;\n      subtitle: string;"}

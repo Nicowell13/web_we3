@@ -1,0 +1,15 @@
+﻿diff --git a/src/modules/dashboard/dashboard.service.ts b/src/modules/dashboard/dashboard.service.ts
+index d693fd5..52bc5ff 100644
+--- a/src/modules/dashboard/dashboard.service.ts
++++ b/src/modules/dashboard/dashboard.service.ts
+@@ -68,8 +68,8 @@ export async function getDashboardData(userId: string) {
+       updatedAt: transactions.updatedAt,
+     })
+     .from(transactions)
+-    .innerJoin(products, eq(transactions.productId, products.id))
+-    .innerJoin(gamesCatalog, eq(products.gameId, gamesCatalog.id))
++    .leftJoin(products, eq(transactions.productId, products.id))
++    .leftJoin(gamesCatalog, eq(products.gameId, gamesCatalog.id))
+     .where(eq(transactions.userId, userId))
+     .orderBy(desc(transactions.createdAt))
+     .limit(20);

@@ -1,0 +1,18 @@
+async function getHomeBanner() {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/api/v1/home-banner`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('banner unavailable');
+    return (await res.json()).banner as {
+      title: string;
+      subtitle: string;
+      ctaText: string;
+      ctaUrl: string;
+      imageUrl: string;
+      desktopImageUrl: string;
+      mobileImageUrl: string;
+      isActive: boolean;
+    };
+  } catch { return null; }
+}
+
+async function getFeaturedProducts

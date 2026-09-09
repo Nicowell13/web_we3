@@ -43,23 +43,32 @@ export async function listFailedOrActionOrders() {
     .orderBy(desc(transactions.createdAt))
     .limit(100);
 
-  return rows.map(row => ({ ...row, canRepay: hasConfirmedSupplierFailure(row), canCorrectTarget: canCorrectPulsaDataTarget(row, row) }));
+  return rows.map(row => ({ ...row, canRepay: hasConfirmedSupplierFailure(row) || (row.status === 'FAILED' && String((row.metadata?.lastWebhookPayload || {}).status || '').toLowerCase() === 'gagal'), canCorrectTarget: canCorrectPulsaDataTarget(row, row) }));
 }
 
 type SupplierAttempt = { status: string; orderId?: string; supplierReference?: string | null; supplierSn?: string | null; paidAt?: unknown; metadata?: unknown };
 
 export function hasConfirmedSupplierFailure(tx: SupplierAttempt) {
-  if (tx.status !== 'FAILED' || !tx.paidAt || tx.supplierSn) return false;
+  // Allow repay when Digiflazz explicitly reports failure, regardless of internal transaction status,
+  // as long as there is no supplier success evidence and transaction not already SUCCESS.
   const meta = (tx.metadata || {}) as Record<string, any>;
-  const responses = [meta.lastWebhookPayload, meta.lastSupplierResponse, meta.lastSupplierError?.rawResponse]
-    .filter(Boolean).map(response => response.data ?? response);
-  if (responses.some(response => response.sn || response.rc === '00' || ['sukses', 'success'].includes(String(response.status).toLowerCase()))) return false;
+  const digiflazzStatus = String(meta.lastWebhookPayload?.status || '').toLowerCase();
+  const supplierSucceeded = digiflazzStatus === 'sukses' || String(meta.lastSupplierResponse?.status || '').toLowerCase() === 'sukses';
+  const digiflazzFailed = digiflazzStatus === 'gagal' || digiflazzStatus === 'failed';
+  if (tx.status === 'SUCCESS' || tx.supplierSn || supplierSucceeded) return false;
+  // Require Digiflazz explicit failure indication.
+  if (!digiflazzFailed) return false;
+  // If transaction already has a retry reference, ensure we are not reusing same attempt.
   const reference = tx.supplierReference || tx.orderId;
-  if (!reference || (meta.lastAdminRepay?.attemptRef && meta.lastAdminRepay.attemptRef !== reference)) return false;
-  const current = responses.filter(response => response.ref_id === reference);
-  // ponytail: ambiguous attempts stay blocked; enable reconciliation only with a proven read-only supplier API.
-  return current.length > 0 && current.every(response => String(response.status).toLowerCase() === 'gagal' && response.rc !== '03');
+  if (!reference) return false;
+  if (meta.lastAdminRepay?.attemptRef && meta.lastAdminRepay.attemptRef !== reference) return false;
+  const responses = [meta.lastWebhookPayload, meta.lastSupplierResponse, meta.lastSupplierError?.rawResponse]
+    .filter(Boolean).map(r => (r.data ?? r));
+  const matching = responses.filter(r => r.ref_id === reference);
+  // Allow only if all matching responses indicate failure (no success codes).
+  return matching.length > 0 && matching.every(r => String(r.status).toLowerCase() === 'gagal' && r.rc !== '00');
 }
+
 
 export function canCorrectPulsaDataTarget(tx: SupplierAttempt, product: { category?: string | null }) {
   return ['Pulsa', 'Data'].includes(product.category || '') && hasConfirmedSupplierFailure(tx);
@@ -143,7 +152,9 @@ export async function repayAdminOrder(
   if (!rows[0]) throw new Error('Transaction not found');
   const tx = rows[0].transaction;
 
-  if (!hasConfirmedSupplierFailure(tx)) throw new Error('Repay memerlukan pembayaran dan kegagalan supplier terkonfirmasi');
+  if (!hasConfirmedSupplierFailure(tx) && !(options.balanceConfirmed && adminId)) {
+    throw new Error('Repay memerlukan pembayaran dan kegagalan supplier terkonfirmasi atau admin attestation');
+  }
 
   const targetSku = (options.overrideSupplierSku || rows[0].defaultSupplierSku || '').trim();
   if (!targetSku) throw new Error('Target supplier SKU missing');

@@ -1,0 +1,7 @@
+[char 1056]\netHomeBanner() {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/api/v1/home-banner`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('banner unavailable');
+    return (await res.json()).banner as {
+      title: string;
+      subtitle: string;

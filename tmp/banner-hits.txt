@@ -1,0 +1,3 @@
+49: const res = await fetch(`${getApiBaseUrl()}/api/v1/home-banner`, { cache: 'no-store' });
+75: rankings = (await fetch(`${getApiBaseUrl()}/api/v1/rankings/top-spenders`, { cache: 'no-store' }).then(res => res.json())).rankings ?? [];
+133: <span>{banner?.isActive ? banner.ctaText : 'JELAJAHI KATALOG'}</span>

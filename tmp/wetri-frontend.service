@@ -1,0 +1,19 @@
+[Unit]
+Description=Wetri Frontend Service (Next.js)
+After=network.target wetri-backend.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/web_we3
+Environment=NODE_ENV=production
+Environment=PORT=3000
+EnvironmentFile=-/home/ubuntu/web_we3/.env
+ExecStart=/usr/local/bin/bun run start
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

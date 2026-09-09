@@ -1,0 +1,19 @@
+[Unit]
+Description=Wetri Backend API Service (Elysia Bun)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/web_we3
+Environment=NODE_ENV=production
+Environment=PORT=3001
+EnvironmentFile=-/home/ubuntu/web_we3/.env
+ExecStart=/usr/local/bin/bun run server/index.ts
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

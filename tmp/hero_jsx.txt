@@ -1,0 +1,54 @@
+return (await res.json()).banner as {
+      title: string;
+      subtitle: string;
+      ctaText: string;
+      ctaUrl: string;
+      imageUrl: string;
+      desktopImageUrl: string;
+      mobileImageUrl: string;
+      isActive: boolean;
+    };
+  } catch { return null; }
+}
+
+async function getFeaturedProducts() {
+  try { return await getAllActiveProducts(); } catch { return []; }
+}
+
+export default async function HomePage() {
+  const banner = await getHomeBanner();
+  const allProducts = await getFeaturedProducts();
+  const catalogSlice = allProducts.slice(0, 12);
+
+  let rankings: { rank: number; avatarUrl: string | null; score: number }[] = [];
+  try {
+    rankings = (await fetch(`${getApiBaseUrl()}/api/v1/rankings/top-spenders`, { cache: 'no-store' }).then(res => res.json())).rankings ?? [];
+  } catch {}
+
+  const categories = [
+    { icon: Gamepad2, label: 'Game', href: '/catalog?category=Game' },
+    { icon: Smartphone, label: 'Pulsa', href: '/catalog?category=Pulsa' },
+    { icon: Wifi, label: 'Data', href: '/catalog?category=Data' },
+    { icon: Landmark, label: 'PLN', href: '/catalog?category=PLN' },
+    { icon: WalletCards, label: 'E-Wallet', href: '/catalog?category=E-Wallet' },
+    { icon: Ticket, label: 'Voucher', href: '/catalog?category=Voucher' },
+  ];
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-12 sm:space-y-16">
+      {/* Hero Section */}
+      <section className="relative rounded-2xl glass-panel p-6 sm:p-12 border border-surface-border overflow-hidden">
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
+
+        {banner?.isActive && (banner.desktopImageUrl || banner.mobileImageUrl) && (
+          <>
+            {banner.desktopImageUrl && (
+              <div className="absolute inset-y-0 right-0 hidden lg:block w-1/2 opacity-35">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={banner.desktopImageUrl} alt="Desktop Promo Banner" className="h-full w-full object-cover" />
+              </div>
+            )}
+            {(banner.mobileImageUrl || banner.desktopImageUrl) && (
+              <div className="block lg:hidden w-full mb-4 rounded-xl overflow-hidden border border-surface-border max-h-48 relative z-10">
+                {/* eslint-disable-next-line @

@@ -1,0 +1,24 @@
+﻿ames/free-fire.png',
+  },
+  {
+    id: 'magic-chess',
+    name: 'Magic Chess Go Go',
+    publisher: 'Moonton',
+    category: 'Game',
+    discountBadge: 'NEW',
+    image: '/games/magic-chess.png',
+  },
+];
+
+async function getHomeBanner() {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/api/v1/home-banner`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('banner unavailable');
+    return (await res.json()).banner as {
+      title: string;
+      subtitle: string;
+      ctaText: string;
+      ctaUrl: string;
+      imageUrl: string;
+      desktopImageUrl: string;
+      mobileImageUr
