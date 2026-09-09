@@ -144,6 +144,8 @@ export async function repayAdminOrder(
   } = {},
   adminId?: string
 ) {
+  console.log('🔧 Repay start →', { orderId, adminId, options });
+  if (options.balanceConfirmed !== true) throw new Error('Konfirmasi pengecekan saldo Digiflazz wajib dicentang');
   if (options.balanceConfirmed !== true) throw new Error('Konfirmasi pengecekan saldo Digiflazz wajib dicentang');
   if (typeof adminId !== 'string' || !adminId.trim()) throw new Error('Identitas admin wajib tersedia');
   if (options.overrideSupplierSku !== undefined && typeof options.overrideSupplierSku !== 'string') throw new Error('SKU wajib berupa teks');
