@@ -23,3 +23,11 @@ AGENTS.md
 IDENTITY.md
 SOUL.md
 USER.md
+# Build artefak sementara yang tidak dipush
+.next-before-*/
+
+# Bun lock file (bukan bun.lockb yang dipakai)
+bun.lock
+
+# Semua file/folder di dalam tmp/ (saat ini sudah di‑ignore)
+tmp/
