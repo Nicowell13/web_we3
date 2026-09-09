@@ -193,6 +193,15 @@ export async function repayAdminOrder(
       rawRequest: { ...confirmation, retryRef, targetSku },
     });
   });
+  // Debug payload before calling Digiflazz supplier
+  console.log('🔧 Repay payload →', {
+    sku: targetSku,
+    customerNo,
+    amount: Number(tx.amount),
+    retryRef,
+    adminId,
+    balanceConfirmed: options.balanceConfirmed,
+  });
   let orderResp: any = null;
   let finalStatus: TxStatus = 'PROCESSING';
   let errorMsg: string | null = null;

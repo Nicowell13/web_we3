@@ -136,24 +136,26 @@ export default function OldSchoolPage() {
       const token = await user.getIdToken();
       const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-      const probe = await fetch(`${apiBase}/api/v1/old-school/ping`, { headers });
-      if (probe.status === 401) {
+      // Attempt to fetch an admin‑protected endpoint. If not admin, service returns 403.
+      const metricsRes = await fetch(`${apiBase}/api/v1/old-school/metrics`, { headers });
+      if (metricsRes.status === 401) {
         setAccessState('unauthenticated');
         return;
       }
-      if (probe.status === 403) {
+      if (metricsRes.status === 403) {
         setAccessState('forbidden');
         return;
       }
-      if (!probe.ok) {
+      if (!metricsRes.ok) {
         setAccessState('forbidden');
         return;
       }
 
       setAccessState('allowed');
 
+      // Load all other admin data in parallel.
       const [mRes, lRes, cRes, sRes, pRes, vRes, uRes, bRes, oRes] = await Promise.all([
-        fetch(`${apiBase}/api/v1/old-school/metrics`, { headers }),
+        Promise.resolve(metricsRes),
         fetch(`${apiBase}/api/v1/old-school/audit-logs`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/configs`, { headers }),
         fetch(`${apiBase}/api/v1/old-school/products/summary`, { headers }),
