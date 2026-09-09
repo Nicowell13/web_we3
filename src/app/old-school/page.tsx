@@ -1,7 +1,7 @@
 'use client';
 
 import { getApiBaseUrl } from '@/lib/api-url';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { ShieldAlert, RefreshCw, Terminal, Activity, Settings2, Database, LogIn } from 'lucide-react';
@@ -75,6 +75,9 @@ export default function OldSchoolPage() {
   const [actionOrders, setActionOrders] = useState<any[]>([]);
   const [repayingOrderId, setRepayingOrderId] = useState<string | null>(null);
   const [overrideSkuInput, setOverrideSkuInput] = useState<{ [orderId: string]: string }>({});
+  const correctionDialog = useRef<HTMLDialogElement>(null);
+  const [correctingOrder, setCorrectingOrder] = useState<any>(null);
+  const [targetPhoneInput, setTargetPhoneInput] = useState<{ [orderId: string]: string }>({});
   const [loadingData, setLoadingData] = useState(false);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [products, setProducts] = useState<AdminProduct[]>([]);
@@ -950,6 +953,30 @@ export default function OldSchoolPage() {
           </div>
         </div>
 
+        <dialog ref={correctionDialog} aria-labelledby="target-correction-title" className="w-full max-w-md rounded-xl bg-slate-950 text-white p-5 backdrop:bg-black/70">
+          {correctingOrder && <form onSubmit={async event => {
+            event.preventDefault();
+            setRepayingOrderId(correctingOrder.orderId);
+            try {
+              const ok = await adminAction(`/api/v1/old-school/orders/${correctingOrder.orderId}/target`, 'POST', { targetUserId: targetPhoneInput[correctingOrder.orderId] });
+              if (ok) correctionDialog.current?.close();
+            } finally { setRepayingOrderId(null); }
+          }} className="space-y-4">
+            <h3 id="target-correction-title" className="font-bold">Koreksi Nomor HP</h3>
+            <p className="text-sm">{correctingOrder.productName} — {correctingOrder.orderId}</p>
+            <p className="text-sm">Nomor tersimpan: {correctingOrder.targetUserId}</p>
+            <p className="text-sm text-amber-300">Simpan hanya mengubah nomor. Repay dilakukan terpisah setelah nomor tersimpan diverifikasi. Pending, timeout, atau bukti sukses tetap diblokir.</p>
+            <label className="block text-sm">Nomor HP baru
+              <input autoFocus type="tel" inputMode="numeric" required pattern="08[0-9]{8,13}" minLength={10} maxLength={15} value={targetPhoneInput[correctingOrder.orderId] || ''} onChange={event => setTargetPhoneInput(previous => ({ ...previous, [correctingOrder.orderId]: event.target.value }))} className="mt-1 block w-full rounded border border-slate-600 bg-black p-2" />
+            </label>
+            {!correctingOrder.canCorrectTarget && <p role="status" className="text-sm text-amber-300">Belum ada kegagalan supplier terkonfirmasi. Nomor tidak boleh disimpan.</p>}
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => { setTargetPhoneInput(previous => ({ ...previous, [correctingOrder.orderId]: correctingOrder.targetUserId })); correctionDialog.current?.close(); }}>Batal</button>
+              <button disabled={repayingOrderId !== null || !correctingOrder.canCorrectTarget || targetPhoneInput[correctingOrder.orderId] === correctingOrder.targetUserId} className="rounded bg-amber-400 text-black px-4 py-2 disabled:opacity-50">Simpan Nomor</button>
+            </div>
+          </form>}
+        </dialog>
+
         {/* Action Needed: Failed / Pending Orders Intervention */}
         <div className="glass-panel p-6 rounded-2xl border border-rose-500/40 space-y-4">
           <div className="flex items-center justify-between">
@@ -967,6 +994,8 @@ export default function OldSchoolPage() {
               {actionOrders.map(ord => {
                 const lastError = ord.metadata?.lastSupplierError?.message || ord.metadata?.lastAdminRepay?.lastError || 'Supplier response pending/gagal';
                 const currentOverrideSku = overrideSkuInput[ord.orderId] ?? '';
+                const currentTargetPhone = targetPhoneInput[ord.orderId] ?? ord.targetUserId ?? '';
+                const canEditTarget = ['Pulsa', 'Data'].includes(ord.category);
 
                 return (
                   <div key={ord.orderId} className="p-3.5 rounded-xl bg-surface border border-rose-500/30 space-y-2.5 text-xs">
@@ -991,17 +1020,22 @@ export default function OldSchoolPage() {
                       Detail Error: {lastError}
                     </div>
 
+                    {canEditTarget && <button type="button" onClick={() => { setCorrectingOrder(ord); setTargetPhoneInput(previous => ({ ...previous, [ord.orderId]: ord.targetUserId })); correctionDialog.current?.showModal(); }} className="px-4 py-2 rounded bg-amber-400 text-black font-semibold">Koreksi Nomor HP</button>}
+                    {!ord.canRepay && <p className="text-amber-300">Koreksi/repay terkunci: perlu pembayaran dan kegagalan supplier terkonfirmasi. Pending atau timeout tidak aman untuk dicoba ulang.</p>}
+
                     <div className="flex flex-col sm:flex-row gap-2 pt-1">
                       <input
                         type="text"
+                        aria-label={`SKU alternatif ${ord.orderId}`}
                         placeholder={`Ganti SKU alternatif (kosongkan jika tetap: ${ord.supplierProductCode})`}
                         value={currentOverrideSku}
                         onChange={(e) => setOverrideSkuInput({ ...overrideSkuInput, [ord.orderId]: e.target.value })}
                         className="flex-1 bg-black/40 border border-surface-border rounded px-3 py-1.5 text-xs text-white font-mono focus:border-primary focus:outline-none"
                       />
                       <button
-                        disabled={repayingOrderId === ord.orderId}
+                        disabled={repayingOrderId !== null || !ord.canRepay || currentTargetPhone !== ord.targetUserId}
                         onClick={async () => {
+                          if (!window.confirm(`Kirim ulang produk ke ${ord.targetUserId}? Tindakan ini membuat transaksi supplier baru dan dapat memotong saldo.`)) return;
                           setRepayingOrderId(ord.orderId);
                           try {
                             const res = await adminAction(`/api/v1/old-school/orders/${ord.orderId}/repay`, 'POST', {

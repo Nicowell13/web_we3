@@ -7,7 +7,7 @@ import { desc, eq, ilike } from 'drizzle-orm';
 import { syncDigiflazzProducts } from './product-sync.service';
 import { bulkUpdateProducts, calculatePriceFromMargin, getProductSummary, listAdminProducts, updateAdminProduct } from './product-admin.service';
 import { createAdminVoucher, listAdminVouchers, updateAdminVoucher } from './voucher-admin.service';
-import { listFailedOrActionOrders, repayAdminOrder } from './order-admin.service';
+import { correctAdminOrderTarget, listFailedOrActionOrders, repayAdminOrder } from './order-admin.service';
 import { createCompensationVoucher } from './compensation-admin.service';
 import { bulkUpdateProductStatus, bulkUpdateProductMargin } from './bulk-admin.service';
 
@@ -172,6 +172,16 @@ export const adminRoutes = new Elysia({ prefix: '/api/v1/old-school' })
   })
   .get('/orders/action-needed', async () => {
     return { ok: true, orders: await listFailedOrActionOrders() };
+  })
+  .post('/orders/:orderId/target', async ({ params, body, set }) => {
+    try {
+      const target = (body as { targetUserId?: unknown })?.targetUserId;
+      if (typeof target !== 'string') throw new Error('Nomor HP wajib berupa teks');
+      return await correctAdminOrderTarget(params.orderId, target);
+    } catch (err: any) {
+      set.status = 400;
+      return { ok: false, message: err?.message || 'Target correction failed' };
+    }
   })
   .post('/orders/:orderId/repay', async ({ params, body, set }) => {
     const payload = (body as { overrideSupplierSku?: string; adminNotes?: string }) || {};
