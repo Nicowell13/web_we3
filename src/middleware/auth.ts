@@ -53,7 +53,13 @@ export const authenticate = new Elysia({ name: 'authenticate' })
     if (error instanceof ForbiddenError)    { set.status = 403; return { message: error.message }; }
   })
   .derive({ as: 'scoped' }, async ({ request }) => {
+    // Public health‑check – allow unauthenticated access to any route that ends with /ping.
+    // request.path contains the raw path (e.g., "/api/v1/old-school/ping").
+    if (request.path?.endsWith('/ping')) {
+      return { user: null, role: null };
+    }
     const decoded = await resolveToken(request);
+    console.log('🔧 Auth decoded uid →', decoded.uid);
     const dbUser = await resolveDbUser(decoded.uid);
     const role = dbUser?.role === 'admin' ? 'admin' : dbUser?.role === 'editor' ? 'editor' : 'user';
     if (dbUser?.status === 'banned') throw new ForbiddenError('Account banned');
@@ -70,6 +76,10 @@ export function requireRole(requiredRole: 'admin' | 'editor' | 'user' | Array<'a
       if (error instanceof ForbiddenError)    { set.status = 403; return { message: error.message }; }
     })
     .derive({ as: 'scoped' }, async ({ request }) => {
+      // Public ping – bypass auth.
+      if (request.path?.endsWith('/ping')) {
+        return { user: null, role: null };
+      }
       const decoded = await resolveToken(request);
       const dbUser = await resolveDbUser(decoded.uid);
       const role = dbUser?.role === 'admin' ? 'admin' : dbUser?.role === 'editor' ? 'editor' : 'user';
