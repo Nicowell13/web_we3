@@ -43,7 +43,19 @@ export async function listFailedOrActionOrders() {
     .orderBy(desc(transactions.createdAt))
     .limit(100);
 
-  return rows.map(row => ({ ...row, canRepay: hasConfirmedSupplierFailure(row) || (row.status === 'FAILED' && String((row.metadata?.lastWebhookPayload || {}).status || '').toLowerCase() === 'gagal'), canCorrectTarget: canCorrectPulsaDataTarget(row, row) }));
+  // Cast metadata to any to safely access nested fields (e.g., lastWebhookPayload).
+  // This avoids TypeScript error "Property 'lastWebhookPayload' does not exist on type '{}'".
+  return rows.map(row => {
+    const meta = (row.metadata ?? {}) as any;
+    const isFailedWebhook =
+      row.status === 'FAILED' &&
+      String((meta.lastWebhookPayload || {}).status || '').toLowerCase() === 'gagal';
+    return {
+      ...row,
+      canRepay: hasConfirmedSupplierFailure(row) || isFailedWebhook,
+      canCorrectTarget: canCorrectPulsaDataTarget(row, row),
+    } as typeof row;
+  });
 }
 
 type SupplierAttempt = { status: string; orderId?: string; supplierReference?: string | null; supplierSn?: string | null; paidAt?: unknown; metadata?: unknown };

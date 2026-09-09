@@ -23,6 +23,10 @@ Admin initiates repay via endpoint `/api/v1/old-school/orders/:orderId/repay` wi
 12. If transaction reached `SUCCESS` and `userId` present, calculate points and reward referral.
 13. Return JSON `{ ok: true, orderId, status, targetSku, supplierReference, supplierSn, error? }`.
 
+## UI Checklist Box Handling
+- Ensure balance confirmation checkbox in admin UI is never disabled based on backend `canRepay` status. Admin attestation is specifically designed to manually unblock pending/stuck transactions when supplier failed on provider side but webhook is delayed.
+- Only disable checkbox when a repay submission is currently in flight (`repayingOrderId !== null`).
+
 ## Notes
 - Guard rejects pending, timeout, success, refunded, or any transaction where supplier evidence exists.
 - Admin must manually verify Digiflazz balance; attestation does not replace supplier failure evidence.
