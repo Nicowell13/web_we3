@@ -1026,7 +1026,7 @@ export default function OldSchoolPage() {
 
                     <label className="flex items-start gap-2 text-amber-300">
                       <input type="checkbox" checked={balanceConfirmed[ord.orderId] === true}
-                        disabled={!ord.canRepay || repayingOrderId !== null}
+                        disabled={repayingOrderId !== null}
                         onChange={event => setBalanceConfirmed(previous => ({ ...previous, [ord.orderId]: event.target.checked }))} />
                       Sudah cek Digiflazz: transaksi gagal dan saldo tidak terpotong/sudah kembali
                     </label>
@@ -1040,7 +1040,7 @@ export default function OldSchoolPage() {
                         className="flex-1 bg-black/40 border border-surface-border rounded px-3 py-1.5 text-xs text-white font-mono focus:border-primary focus:outline-none"
                       />
                       <button
-                        disabled={repayingOrderId !== null || !ord.canRepay || balanceConfirmed[ord.orderId] !== true || currentTargetPhone !== ord.targetUserId}
+                        disabled={repayingOrderId !== null || balanceConfirmed[ord.orderId] !== true || currentTargetPhone !== ord.targetUserId}
                         onClick={async () => {
                           if (!window.confirm(`Kirim ulang produk ke ${ord.targetUserId}? Tindakan ini membuat transaksi supplier baru dan dapat memotong saldo.`)) return;
                           setRepayingOrderId(ord.orderId);
