@@ -183,10 +183,10 @@ export const adminRoutes = new Elysia({ prefix: '/api/v1/old-school' })
       return { ok: false, message: err?.message || 'Target correction failed' };
     }
   })
-  .post('/orders/:orderId/repay', async ({ params, body, set }) => {
-    const payload = (body as { overrideSupplierSku?: string; adminNotes?: string }) || {};
+  .post('/orders/:orderId/repay', async ({ params, body, set, user }) => {
+    const payload = (body as { overrideSupplierSku?: string; adminNotes?: string; balanceConfirmed?: boolean }) || {};
     try {
-      const result = await repayAdminOrder(params.orderId, payload);
+      const result = await repayAdminOrder(params.orderId, payload, user.uid);
       return result;
     } catch (err: any) {
       set.status = 400;

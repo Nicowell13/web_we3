@@ -119,8 +119,14 @@ export async function repayAdminOrder(
   options: {
     overrideSupplierSku?: string;
     adminNotes?: string;
-  } = {}
+    balanceConfirmed?: boolean;
+  } = {},
+  adminId?: string
 ) {
+  if (options.balanceConfirmed !== true) throw new Error('Konfirmasi pengecekan saldo Digiflazz wajib dicentang');
+  if (typeof adminId !== 'string' || !adminId.trim()) throw new Error('Identitas admin wajib tersedia');
+  if (options.overrideSupplierSku !== undefined && typeof options.overrideSupplierSku !== 'string') throw new Error('SKU wajib berupa teks');
+  if (options.adminNotes !== undefined && typeof options.adminNotes !== 'string') throw new Error('Catatan wajib berupa teks');
   const rows = await db
     .select({
       transaction: transactions,
@@ -151,12 +157,19 @@ export async function repayAdminOrder(
   const retryRef = `${orderId}-R${randomUUID()}`;
 
   const supplier = await getActiveSupplier();
-  const claimed = await db.update(transactions).set({
-    status: 'PROCESSING', supplierReference: retryRef,
-    metadata: { ...((tx.metadata as Record<string, unknown>) || {}), lastAdminRepay: { attemptRef: retryRef } },
-    updatedAt: new Date(),
-  }).where(and(eq(transactions.orderId, orderId), eq(transactions.status, 'FAILED'), eq(transactions.updatedAt, tx.updatedAt), eq(transactions.targetUserId, tx.targetUserId))).returning({ orderId: transactions.orderId });
-  if (!claimed.length) throw new Error('Transaksi berubah; muat ulang sebelum repay');
+  const confirmation = { adminId, balanceConfirmed: true, confirmedAt: new Date().toISOString(), previousSupplierReference: tx.supplierReference || tx.orderId };
+  await db.transaction(async database => {
+    const claimed = await database.update(transactions).set({
+      status: 'PROCESSING', supplierReference: retryRef,
+      metadata: { ...((tx.metadata as Record<string, unknown>) || {}), lastAdminRepay: { attemptRef: retryRef, ...confirmation } },
+      updatedAt: new Date(),
+    }).where(and(eq(transactions.orderId, orderId), eq(transactions.status, 'FAILED'), eq(transactions.updatedAt, tx.updatedAt), eq(transactions.targetUserId, tx.targetUserId))).returning({ orderId: transactions.orderId });
+    if (!claimed.length) throw new Error('Transaksi berubah; muat ulang sebelum repay');
+    await database.insert(auditTrails).values({
+      eventType: 'ADMIN_REPAY_CONFIRMED', referenceId: orderId,
+      rawRequest: { ...confirmation, retryRef, targetSku },
+    });
+  });
   let orderResp: any = null;
   let finalStatus: TxStatus = 'PROCESSING';
   let errorMsg: string | null = null;
@@ -189,6 +202,7 @@ export async function repayAdminOrder(
   const metadataUpdate = {
     ...((tx.metadata as Record<string, unknown>) || {}),
     lastAdminRepay: {
+      ...confirmation,
       timestamp: new Date().toISOString(),
       overrideSupplierSku: options.overrideSupplierSku ?? null,
       adminNotes: options.adminNotes ?? null,
@@ -215,7 +229,7 @@ export async function repayAdminOrder(
   await db.insert(auditTrails).values({
     eventType: isSuccess ? 'ADMIN_REPAY_SUCCESS' : 'ADMIN_REPAY_FAILED',
     referenceId: orderId,
-    rawRequest: { options, retryRef, targetSku } as any,
+    rawRequest: { options, retryRef, targetSku, ...confirmation } as any,
     rawResponse: orderResp as any,
   });
 

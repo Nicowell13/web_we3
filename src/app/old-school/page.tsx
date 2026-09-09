@@ -74,6 +74,7 @@ export default function OldSchoolPage() {
   const [configs, setConfigs] = useState<SystemConfig[]>([]);
   const [actionOrders, setActionOrders] = useState<any[]>([]);
   const [repayingOrderId, setRepayingOrderId] = useState<string | null>(null);
+  const [balanceConfirmed, setBalanceConfirmed] = useState<Record<string, boolean>>({});
   const [overrideSkuInput, setOverrideSkuInput] = useState<{ [orderId: string]: string }>({});
   const correctionDialog = useRef<HTMLDialogElement>(null);
   const [correctingOrder, setCorrectingOrder] = useState<any>(null);
@@ -194,7 +195,7 @@ export default function OldSchoolPage() {
       if (vRes.ok) { const v = await vRes.json(); setVouchers(v.vouchers ?? []); }
       if (uRes.ok) { const u = await uRes.json(); setUsers(u.users ?? []); }
       if (bRes.ok) { const b = await bRes.json(); setBanner(b.banner ?? null); setBannerDraft(b.banner ?? null); }
-      if (oRes.ok) { const o = await oRes.json(); setActionOrders(o.orders ?? []); }
+      if (oRes.ok) { const o = await oRes.json(); setActionOrders(o.orders ?? []); setBalanceConfirmed({}); }
     } catch {
       setAccessState('forbidden');
     } finally {
@@ -1023,6 +1024,12 @@ export default function OldSchoolPage() {
                     {canEditTarget && <button type="button" onClick={() => { setCorrectingOrder(ord); setTargetPhoneInput(previous => ({ ...previous, [ord.orderId]: ord.targetUserId })); correctionDialog.current?.showModal(); }} className="px-4 py-2 rounded bg-amber-400 text-black font-semibold">Koreksi Nomor HP</button>}
                     {!ord.canRepay && <p className="text-amber-300">Koreksi/repay terkunci: perlu pembayaran dan kegagalan supplier terkonfirmasi. Pending atau timeout tidak aman untuk dicoba ulang.</p>}
 
+                    <label className="flex items-start gap-2 text-amber-300">
+                      <input type="checkbox" checked={balanceConfirmed[ord.orderId] === true}
+                        disabled={!ord.canRepay || repayingOrderId !== null}
+                        onChange={event => setBalanceConfirmed(previous => ({ ...previous, [ord.orderId]: event.target.checked }))} />
+                      Sudah cek Digiflazz: transaksi gagal dan saldo tidak terpotong/sudah kembali
+                    </label>
                     <div className="flex flex-col sm:flex-row gap-2 pt-1">
                       <input
                         type="text"
@@ -1033,7 +1040,7 @@ export default function OldSchoolPage() {
                         className="flex-1 bg-black/40 border border-surface-border rounded px-3 py-1.5 text-xs text-white font-mono focus:border-primary focus:outline-none"
                       />
                       <button
-                        disabled={repayingOrderId !== null || !ord.canRepay || currentTargetPhone !== ord.targetUserId}
+                        disabled={repayingOrderId !== null || !ord.canRepay || balanceConfirmed[ord.orderId] !== true || currentTargetPhone !== ord.targetUserId}
                         onClick={async () => {
                           if (!window.confirm(`Kirim ulang produk ke ${ord.targetUserId}? Tindakan ini membuat transaksi supplier baru dan dapat memotong saldo.`)) return;
                           setRepayingOrderId(ord.orderId);
@@ -1041,11 +1048,13 @@ export default function OldSchoolPage() {
                             const res = await adminAction(`/api/v1/old-school/orders/${ord.orderId}/repay`, 'POST', {
                               overrideSupplierSku: currentOverrideSku.trim() || undefined,
                               adminNotes: 'Intervensi manual dari admin panel',
+                              balanceConfirmed: balanceConfirmed[ord.orderId] === true,
                             });
                             if (res) {
                               setOverrideSkuInput(prev => ({ ...prev, [ord.orderId]: '' }));
                             }
                           } finally {
+                            setBalanceConfirmed(previous => ({ ...previous, [ord.orderId]: false }));
                             setRepayingOrderId(null);
                           }
                         }}
