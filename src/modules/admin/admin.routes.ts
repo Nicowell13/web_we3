@@ -19,9 +19,11 @@ import { bulkUpdateProductStatus, bulkUpdateProductMargin } from './bulk-admin.s
  * GET /api/v1/old-school/configs – feature‑flag list.
  * POST /api/v1/old-school/configs – update a config (key/value).
  */
+// Public health‑check endpoint – no auth required, useful for external monitoring.
 export const adminRoutes = new Elysia({ prefix: '/api/v1/old-school' })
-  .use(requireRole('admin'))
   .get('/ping', () => ({ ok: true, scope: 'old-school' }))
+  // Admin‑only routes are protected after the public ping.
+  .use(requireRole('admin'))
   .post('/suppliers/digiflazz/sync-products', async ({ set }) => {
     try { return { ok: true, ...(await syncDigiflazzProducts()) }; }
     catch (error) { set.status = 502; return { ok: false, message: error instanceof Error ? error.message : 'Product sync failed' }; }
@@ -184,6 +186,7 @@ export const adminRoutes = new Elysia({ prefix: '/api/v1/old-school' })
     }
   })
   .post('/orders/:orderId/repay', async ({ params, body, set, user }) => {
+    console.log('🔧 Repay request body →', body);
     const payload = (body as { overrideSupplierSku?: string; adminNotes?: string; balanceConfirmed?: boolean }) || {};
     try {
       const result = await repayAdminOrder(params.orderId, payload, user.uid);
