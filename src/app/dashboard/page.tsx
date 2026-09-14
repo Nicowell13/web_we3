@@ -297,7 +297,9 @@ export default function DashboardPage() {
     return { title: 'Top-up Game', target: 'ID Game' };
   };
 
-  const TransactionResult = ({ tx }: { tx: any }) => tx.metadata?.plnToken ? (
+  const TransactionResult = ({ tx }: { tx: any }) => {
+    const isPln = String(tx.category || '').toLowerCase() === 'pln';
+    return isPln && tx.metadata?.plnToken ? (
     <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-400">
@@ -311,10 +313,11 @@ export default function DashboardPage() {
     </div>
   ) : tx.supplierSn && tx.status === 'SUCCESS' ? (
     <div className="mt-3 rounded-lg border border-accent-green/30 bg-accent-green/10 p-3">
-      <p className="text-[10px] font-bold uppercase text-accent-green">Serial Number</p>
+      <p className="text-[10px] font-bold uppercase text-accent-green">{isPln ? 'Serial Number' : 'Invoice / SN'}</p>
       <p className="mt-1 break-all font-mono text-xs text-slate-200">{tx.supplierSn}</p>
     </div>
   ) : null;
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">

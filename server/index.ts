@@ -49,6 +49,10 @@ export const app = new Elysia()
     timestamp: new Date().toISOString(),
     env: process.env.NODE_ENV || 'development',
   }))
+  .get('/api/v1/old-school/ping', () => ({
+    ok: true,
+    scope: 'old-school',
+  }))
   .get('/api/v1/config', () => ({
     brand: 'wetri.shop',
     tagline: 'Vaporwave & Cyberpunk Top-up Destination',

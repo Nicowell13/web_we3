@@ -2,7 +2,7 @@ import { Elysia } from 'elysia';
 import { requireRole } from '../../middleware/auth';
 import { getActiveSupplier, resolveSupplier } from './supplierFactory';
 import { db } from '../../db';
-import { auditTrails, systemConfigs, transactions } from '../../db/schema';
+import { auditTrails, gamesCatalog, products, systemConfigs, transactions } from '../../db/schema';
 import { eq, or } from 'drizzle-orm';
 import { advanceTransaction } from '../transaction/transaction.service';
 import { inquirePlnCustomer } from './pln-inquiry.service';
@@ -62,12 +62,18 @@ export const supplierPublicRoutes = new Elysia({ prefix: '/api/v1/supplier' })
       return { ok: false, message: 'Missing ref_id in webhook data' };
     }
 
-    const tx = await db.query.transactions.findFirst({
-      where: or(
+    const rows = await db
+      .select({ transaction: transactions, category: gamesCatalog.category })
+      .from(transactions)
+      .leftJoin(products, eq(transactions.productId, products.id))
+      .leftJoin(gamesCatalog, eq(products.gameId, gamesCatalog.id))
+      .where(or(
         eq(transactions.orderId, data.ref_id),
         eq(transactions.supplierReference, data.ref_id)
-      ),
-    });
+      ))
+      .limit(1);
+    const tx = rows[0]?.transaction;
+    const isPln = String(rows[0]?.category || '').toLowerCase() === 'pln';
 
     if (!tx) {
       // Return 200 to acknowledge Digiflazz so they do not retry endlessly for non-existent local orders
@@ -82,9 +88,9 @@ export const supplierPublicRoutes = new Elysia({ prefix: '/api/v1/supplier' })
     if (isSuccess) nextStatus = 'SUCCESS';
     else if (isFailed) nextStatus = 'FAILED';
 
-    const plnDetails = data.sn ? parsePlnToken(data.sn) : null;
+    const plnDetails = isPln && data.sn ? parsePlnToken(data.sn) : null;
 
-    // Update metadata and token if PLN
+    // Update metadata and token only for PLN
     const currentMeta = (tx.metadata || {}) as Record<string, unknown>;
     const updatedMeta = {
       ...currentMeta,
@@ -146,7 +152,15 @@ export const supplierAdminRoutes = new Elysia({ prefix: '/api/v1/supplier' })
   })
 
   .post('/orders/:orderId/reconcile', async ({ params, set }) => {
-    const tx = await db.query.transactions.findFirst({ where: eq(transactions.orderId, params.orderId) });
+    const rows = await db
+      .select({ transaction: transactions, category: gamesCatalog.category })
+      .from(transactions)
+      .leftJoin(products, eq(transactions.productId, products.id))
+      .leftJoin(gamesCatalog, eq(products.gameId, gamesCatalog.id))
+      .where(eq(transactions.orderId, params.orderId))
+      .limit(1);
+    const tx = rows[0]?.transaction;
+    const isPln = String(rows[0]?.category || '').toLowerCase() === 'pln';
     if (!tx || !['PAID', 'PROCESSING'].includes(tx.status)) {
       set.status = 409;
       return { ok: false, message: 'Transaction is not eligible for reconciliation' };
@@ -157,7 +171,7 @@ export const supplierAdminRoutes = new Elysia({ prefix: '/api/v1/supplier' })
     const result = await supplier.checkOrderStatus(reference);
     const status = String(result?.status ?? '').toLowerCase();
     const nextStatus = status === 'sukses' ? 'SUCCESS' : status === 'gagal' ? 'FAILED' : 'PROCESSING';
-    const plnDetails = result?.sn ? parsePlnToken(result.sn) : null;
+    const plnDetails = isPln && result?.sn ? parsePlnToken(result.sn) : null;
 
     const currentMeta = (tx.metadata || {}) as Record<string, unknown>;
     const updatedMeta = {

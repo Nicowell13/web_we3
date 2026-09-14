@@ -54,8 +54,8 @@ export const authenticate = new Elysia({ name: 'authenticate' })
   })
   .derive({ as: 'scoped' }, async ({ request }) => {
     // Public health‑check – allow unauthenticated access to any route that ends with /ping.
-    // request.path contains the raw path (e.g., "/api/v1/old-school/ping").
-    if (request.path?.endsWith('/ping')) {
+    // Elysia adds path at runtime; Request type does not include it.
+    if ((request as Request & { path?: string }).path?.endsWith('/ping')) {
       return { user: null, role: null };
     }
     const decoded = await resolveToken(request);
@@ -77,7 +77,7 @@ export function requireRole(requiredRole: 'admin' | 'editor' | 'user' | Array<'a
     })
     .derive({ as: 'scoped' }, async ({ request }) => {
       // Public ping – bypass auth.
-      if (request.path?.endsWith('/ping')) {
+      if ((request as Request & { path?: string }).path?.endsWith('/ping')) {
         return { user: null, role: null };
       }
       const decoded = await resolveToken(request);
