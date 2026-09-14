@@ -1,6 +1,6 @@
 import { db } from '../../db';
 import { transactions, products, gamesCatalog, auditTrails } from '../../db/schema';
-import { eq, and, or, desc } from 'drizzle-orm';
+import { eq, and, or, desc, lt } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { getActiveSupplier } from '../suppliers/supplierFactory';
 import { calculatePoints } from '../transaction/points.logic';
@@ -64,10 +64,11 @@ export function hasConfirmedSupplierFailure(tx: SupplierAttempt) {
   // Allow repay when Digiflazz explicitly reports failure, regardless of internal transaction status,
   // as long as there is no supplier success evidence and transaction not already SUCCESS.
   const meta = (tx.metadata || {}) as Record<string, any>;
-  const digiflazzStatus = String(meta.lastWebhookPayload?.status || '').toLowerCase();
-  const supplierSucceeded = digiflazzStatus === 'sukses' || String(meta.lastSupplierResponse?.status || '').toLowerCase() === 'sukses';
+  const digiflazzStatus = String((meta.lastWebhookPayload || meta.lastSupplierError?.rawResponse?.data)?.status || '').toLowerCase();
+  const supplierResponse = meta.lastSupplierResponse?.data ?? meta.lastSupplierResponse;
+  const supplierSucceeded = digiflazzStatus === 'sukses' || String(supplierResponse?.status || '').toLowerCase() === 'sukses' || supplierResponse?.rc === '00' || Boolean(supplierResponse?.sn) || String(supplierResponse?.data?.status || '').toLowerCase() === 'sukses';
   const digiflazzFailed = digiflazzStatus === 'gagal' || digiflazzStatus === 'failed';
-  if (tx.status === 'SUCCESS' || tx.supplierSn || supplierSucceeded) return false;
+  if (tx.status !== 'FAILED' || !tx.paidAt || tx.status === 'SUCCESS' || tx.supplierSn || supplierSucceeded) return false;
   // Require Digiflazz explicit failure indication.
   if (!digiflazzFailed) return false;
   // If transaction already has a retry reference, ensure we are not reusing same attempt.
@@ -76,7 +77,7 @@ export function hasConfirmedSupplierFailure(tx: SupplierAttempt) {
   if (meta.lastAdminRepay?.attemptRef && meta.lastAdminRepay.attemptRef !== reference) return false;
   const responses = [meta.lastWebhookPayload, meta.lastSupplierResponse, meta.lastSupplierError?.rawResponse]
     .filter(Boolean).map(r => (r.data ?? r));
-  const matching = responses.filter(r => r.ref_id === reference);
+  const matching = responses.filter(r => r.ref_id === reference || r.data?.ref_id === reference);
   // Allow only if all matching responses indicate failure (no success codes).
   return matching.length > 0 && matching.every(r => String(r.status).toLowerCase() === 'gagal' && r.rc !== '00');
 }
@@ -146,7 +147,6 @@ export async function repayAdminOrder(
 ) {
   console.log('🔧 Repay start →', { orderId, adminId, options });
   if (options.balanceConfirmed !== true) throw new Error('Konfirmasi pengecekan saldo Digiflazz wajib dicentang');
-  if (options.balanceConfirmed !== true) throw new Error('Konfirmasi pengecekan saldo Digiflazz wajib dicentang');
   if (typeof adminId !== 'string' || !adminId.trim()) throw new Error('Identitas admin wajib tersedia');
   if (options.overrideSupplierSku !== undefined && typeof options.overrideSupplierSku !== 'string') throw new Error('SKU wajib berupa teks');
   if (options.adminNotes !== undefined && typeof options.adminNotes !== 'string') throw new Error('Catatan wajib berupa teks');
@@ -166,29 +166,30 @@ export async function repayAdminOrder(
   if (!rows[0]) throw new Error('Transaction not found');
   const tx = rows[0].transaction;
 
-  if (!hasConfirmedSupplierFailure(tx) && !(options.balanceConfirmed && adminId)) {
+  if (!hasConfirmedSupplierFailure(tx)) {
     throw new Error('Repay memerlukan pembayaran dan kegagalan supplier terkonfirmasi atau admin attestation');
   }
 
   const targetSku = (options.overrideSupplierSku || rows[0].defaultSupplierSku || '').trim();
+  if (options.overrideSupplierSku !== undefined && !/^[A-Za-z0-9._-]{1,64}$/.test(targetSku)) throw new Error('SKU supplier tidak valid');
   if (!targetSku) throw new Error('Target supplier SKU missing');
   if (['Pulsa', 'Data'].includes(rows[0].category)) {
     if (tx.targetServerId) throw new Error('Target pulsa/data tidak boleh memiliki server ID');
     validateTargetPhone(tx.targetUserId, rows[0].brand);
-    if (targetSku !== rows[0].defaultSupplierSku) throw new Error('SKU alternatif pulsa/data belum dapat diverifikasi; gunakan SKU asli');
   }
 
   const customerNo = tx.targetServerId ? `${tx.targetUserId}${tx.targetServerId}` : tx.targetUserId;
   const retryRef = `${orderId}-R${randomUUID()}`;
 
   const supplier = await getActiveSupplier();
+  const staleBefore = new Date(Date.now() - 15 * 60 * 1000);
   const confirmation = { adminId, balanceConfirmed: true, confirmedAt: new Date().toISOString(), previousSupplierReference: tx.supplierReference || tx.orderId };
   await db.transaction(async database => {
     const claimed = await database.update(transactions).set({
       status: 'PROCESSING', supplierReference: retryRef,
       metadata: { ...((tx.metadata as Record<string, unknown>) || {}), lastAdminRepay: { attemptRef: retryRef, ...confirmation } },
       updatedAt: new Date(),
-    }).where(and(eq(transactions.orderId, orderId), eq(transactions.status, 'FAILED'), eq(transactions.updatedAt, tx.updatedAt), eq(transactions.targetUserId, tx.targetUserId))).returning({ orderId: transactions.orderId });
+    }).where(and(eq(transactions.orderId, orderId), eq(transactions.targetUserId, tx.targetUserId), or(and(eq(transactions.status, 'FAILED'), eq(transactions.updatedAt, tx.updatedAt)), and(eq(transactions.status, 'PROCESSING'), eq(transactions.updatedAt, tx.updatedAt), lt(transactions.updatedAt, staleBefore))))).returning({ orderId: transactions.orderId });
     if (!claimed.length) throw new Error('Transaksi berubah; muat ulang sebelum repay');
     await database.insert(auditTrails).values({
       eventType: 'ADMIN_REPAY_CONFIRMED', referenceId: orderId,
@@ -226,7 +227,7 @@ export async function repayAdminOrder(
     }
   } catch (err: any) {
     errorMsg = err?.message || 'Supplier connection error';
-    finalStatus = 'PROCESSING';
+    finalStatus = 'FAILED';
   }
 
   const supplierReference = orderResp?.ref_id ?? orderResp?.data?.ref_id ?? retryRef;
@@ -243,7 +244,7 @@ export async function repayAdminOrder(
       attemptRef: retryRef,
       lastError: errorMsg,
     },
-    lastSupplierResponse: orderResp,
+    lastSupplierResponse: orderResp ? { status: orderResp.status ?? orderResp.data?.status, ref_id: orderResp.ref_id ?? orderResp.data?.ref_id, message: orderResp.message ?? orderResp.data?.message, sn: orderResp.sn ?? orderResp.data?.sn } : null,
     needsAdminAction: !isSuccess,
   };
 
