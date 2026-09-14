@@ -68,7 +68,7 @@ export function hasConfirmedSupplierFailure(tx: SupplierAttempt) {
   const supplierResponse = meta.lastSupplierResponse?.data ?? meta.lastSupplierResponse;
   const supplierSucceeded = digiflazzStatus === 'sukses' || String(supplierResponse?.status || '').toLowerCase() === 'sukses' || supplierResponse?.rc === '00' || Boolean(supplierResponse?.sn) || String(supplierResponse?.data?.status || '').toLowerCase() === 'sukses';
   const digiflazzFailed = digiflazzStatus === 'gagal' || digiflazzStatus === 'failed';
-  if (tx.status !== 'FAILED' || !tx.paidAt || tx.status === 'SUCCESS' || tx.supplierSn || supplierSucceeded) return false;
+  if (tx.status !== 'FAILED' || !tx.paidAt || tx.supplierSn || supplierSucceeded) return false;
   // Require Digiflazz explicit failure indication.
   if (!digiflazzFailed) return false;
   // If transaction already has a retry reference, ensure we are not reusing same attempt.
